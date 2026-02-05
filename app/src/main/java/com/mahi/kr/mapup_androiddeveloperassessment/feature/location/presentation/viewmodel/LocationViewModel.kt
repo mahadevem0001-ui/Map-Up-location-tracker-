@@ -12,6 +12,7 @@ import android.os.Build
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.mahi.kr.mapup_androiddeveloperassessment.core.data.local.AppPreferencesManager
 import com.mahi.kr.mapup_androiddeveloperassessment.core.domain.Result
 import com.mahi.kr.mapup_androiddeveloperassessment.core.domain.onError
 import com.mahi.kr.mapup_androiddeveloperassessment.core.domain.onSuccess
@@ -39,6 +40,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlin.coroutines.resume
 
 /**
@@ -56,7 +58,8 @@ class LocationViewModel(
     private val locationClient: ILocationClient,
     private val repository: LocationSessionRepository,
     private val exportToCsvUseCase: ExportSessionToCsvUseCase,
-    private val exportToGpxUseCase: ExportSessionToGpxUseCase
+    private val exportToGpxUseCase: ExportSessionToGpxUseCase,
+    private val prefsManager: AppPreferencesManager
 ) : AndroidViewModel(application) {
 
     companion object {
@@ -92,6 +95,9 @@ class LocationViewModel(
         // Check if service is already running when ViewModel is created
         checkServiceState()
 
+        // Restore last configured interval if we have one persisted by the service
+        restorePersistedInterval()
+
         // Establish initial permission/provider status
         refreshPrerequisites()
 
@@ -115,11 +121,13 @@ class LocationViewModel(
      */
     fun checkServiceState() {
         val isRunning = LocationService.isRunning()
-        Log.d(TAG, "checkServiceState: isRunning=$isRunning")
-        _state.update { it.copy(isServiceRunning = isRunning) }
+        val persistedRunning = readPersistedServiceRunning()
+        val effectiveRunning = isRunning || persistedRunning
+        Log.d(TAG, "checkServiceState: isRunning=$isRunning persisted=$persistedRunning effective=$effectiveRunning")
+        _state.update { it.copy(isServiceRunning = effectiveRunning) }
 
         // If the service is not running but we still have an active session, close it gracefully
-        if (!isRunning) {
+        if (!effectiveRunning) {
             closeStaleActiveSession()
         }
 
@@ -135,6 +143,7 @@ class LocationViewModel(
         val intervalMs = (intervalSeconds * 1000L).coerceIn(MIN_INTERVAL_MS, MAX_INTERVAL_MS)
         Log.d(TAG, "updateLocationInterval: seconds=$intervalSeconds -> ms=$intervalMs")
         currentIntervalMs = intervalMs
+        persistInterval(intervalMs)
         _state.update { it.copy(locationIntervalSeconds = intervalSeconds.coerceIn(1, 240)) }
 
         // If tracking is active, restart with new interval
@@ -593,6 +602,32 @@ class LocationViewModel(
                     val ended = active.copy(endTime = System.currentTimeMillis())
                     repository.updateSession(ended)
                 }
+            }
+        }
+    }
+
+    private fun readPersistedServiceRunning(): Boolean {
+        return runCatching {
+            runBlocking { prefsManager.getTrackingStateSync() }
+        }.getOrElse { false }
+    }
+
+    private fun persistInterval(intervalMs: Long) {
+        viewModelScope.launch {
+            runCatching { prefsManager.setTrackingInterval(intervalMs) }
+                .onFailure { error -> Log.w(TAG, "persistInterval: failed to save interval", error) }
+        }
+    }
+
+    private fun restorePersistedInterval() {
+        viewModelScope.launch {
+            val persisted = runCatching { prefsManager.getTrackingIntervalSync() }.getOrNull()
+
+            persisted?.let { intervalMs ->
+                currentIntervalMs = intervalMs
+                val seconds = (intervalMs / 1000L).toInt().coerceIn(1, 240)
+                _state.update { it.copy(locationIntervalSeconds = seconds) }
+                Log.d(TAG, "restorePersistedInterval: restored intervalMs=$intervalMs")
             }
         }
     }

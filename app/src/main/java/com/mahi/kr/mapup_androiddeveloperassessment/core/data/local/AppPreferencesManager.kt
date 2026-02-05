@@ -5,8 +5,10 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 /**
@@ -32,6 +34,10 @@ class AppPreferencesManager(private val context: Context) {
 
         // Permission preference keys
         private val KEY_HAS_REQUESTED_PERMISSIONS = booleanPreferencesKey("has_requested_permissions_before")
+
+        // Location tracking preference keys
+        private val KEY_IS_TRACKING = booleanPreferencesKey("tracking_is_running")
+        private val KEY_TRACKING_INTERVAL_MS = longPreferencesKey("tracking_interval_ms")
 
     }
 
@@ -105,11 +111,44 @@ class AppPreferencesManager(private val context: Context) {
      * @return true if permissions have been requested before
      */
     suspend fun getHasRequestedPermissionsSync(): Boolean {
-        var result = false
-        context.dataStore.data.collect { preferences ->
-            result = preferences[KEY_HAS_REQUESTED_PERMISSIONS] ?: false
+        return context.dataStore.data.first()[KEY_HAS_REQUESTED_PERMISSIONS] ?: false
+    }
+
+    // ========== Location Tracking Preferences ==========
+
+    val isTracking: Flow<Boolean> = context.dataStore.data
+        .map { preferences ->
+            preferences[KEY_IS_TRACKING] ?: false
         }
-        return result
+
+    val trackingIntervalMs: Flow<Long?> = context.dataStore.data
+        .map { preferences ->
+            preferences[KEY_TRACKING_INTERVAL_MS]
+        }
+
+    suspend fun setTrackingState(isTracking: Boolean, intervalMs: Long?) {
+        context.dataStore.edit { preferences ->
+            preferences[KEY_IS_TRACKING] = isTracking
+            if (intervalMs != null) {
+                preferences[KEY_TRACKING_INTERVAL_MS] = intervalMs
+            } else {
+                preferences.remove(KEY_TRACKING_INTERVAL_MS)
+            }
+        }
+    }
+
+    suspend fun setTrackingInterval(intervalMs: Long) {
+        context.dataStore.edit { preferences ->
+            preferences[KEY_TRACKING_INTERVAL_MS] = intervalMs
+        }
+    }
+
+    suspend fun getTrackingStateSync(): Boolean {
+        return context.dataStore.data.first()[KEY_IS_TRACKING] ?: false
+    }
+
+    suspend fun getTrackingIntervalSync(): Long? {
+        return context.dataStore.data.first()[KEY_TRACKING_INTERVAL_MS]
     }
 
     // ========== Utility Functions ==========

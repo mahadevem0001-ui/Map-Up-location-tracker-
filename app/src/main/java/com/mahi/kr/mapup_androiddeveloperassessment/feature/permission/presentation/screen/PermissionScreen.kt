@@ -69,7 +69,7 @@ fun PermissionScreen(
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-        Log.d(logTag, "Permission launcher result: ${permissions.map { it.key to it.value }}")
+        Log.d(logTag, "Permission launcher result: ${permissions.map { it.key to it.value }} : ${deniedPermissionsList.isNotEmpty()}")
         permissions.entries.forEach { entry ->
             val permission = entry.key
             val isGranted = entry.value
@@ -83,10 +83,19 @@ fun PermissionScreen(
                 )
             )
 
-            if (!isGranted/* && (permission == android.Manifest.permission.ACCESS_FINE_LOCATION || permission == android.Manifest.permission.ACCESS_COARSE_LOCATION)*/) {
-                Log.w(logTag, "Location permission denied from launcher: $permission")
-                locationViewModel.handlePermissionRevokedFromUi()
-            }
+        }
+
+//        if (!isGranted/* && (permission == android.Manifest.permission.ACCESS_FINE_LOCATION || permission == android.Manifest.permission.ACCESS_COARSE_LOCATION)*/) {
+//            Log.w(logTag, "Location permission denied from launcher: $permission")
+//            locationViewModel.handlePermissionRevokedFromUi()
+//        }
+
+
+        if(permissions.entries.any {  (_, granted) ->
+            !granted
+        } && deniedPermissionsList.isNotEmpty()){
+            Log.d(logTag, "Some permissions denied, showing prominent dialog if needed")
+            locationViewModel.handlePermissionRevokedFromUi()
         }
     }
 

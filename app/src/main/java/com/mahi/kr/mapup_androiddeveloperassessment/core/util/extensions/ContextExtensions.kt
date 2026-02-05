@@ -25,3 +25,8 @@ fun Context.hasAllPermissions(permissions: Array<String> = requiredPermissionsSe
     }
 }
 
+
+fun Context.hasActiveProvider() = (this.getSystemService(Context.LOCATION_SERVICE) as android.location.LocationManager)
+        .getProviders(true)
+        .isNotEmpty()
+

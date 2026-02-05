@@ -7,6 +7,9 @@ import android.location.Geocoder
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
+import com.mahi.kr.mapup_androiddeveloperassessment.core.data.local.AppPreferencesManager
+import com.mahi.kr.mapup_androiddeveloperassessment.core.util.extensions.hasActiveProvider
+import com.mahi.kr.mapup_androiddeveloperassessment.core.util.extensions.hasAllPermissions
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.domain.ILocationClient
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.notification.data.repository.AppNotificationManager
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.notification.domain.model.NotificationConfig
@@ -18,6 +21,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.runBlocking
 import org.koin.android.ext.android.inject
 
 /**
@@ -31,6 +35,7 @@ class LocationService : Service() {
     // Inject dependencies using Koin
     private val locationClient: ILocationClient by inject()
     private val buildNotificationUseCase: BuildNotificationUseCase by inject()
+    private val prefsManager: AppPreferencesManager by inject()
 
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val geocoder: Geocoder by lazy { Geocoder(this, java.util.Locale.getDefault()) }
@@ -45,7 +50,7 @@ class LocationService : Service() {
         const val ACTION_STOP = "stop location tracking"
         const val EXTRA_LOCATION_INTERVAL = "location_interval_ms"
         private const val NOTIFICATION_ID = 1
-        private const val DEFAULT_INTERVAL_MS = 5_000L
+        const val DEFAULT_INTERVAL_MS = 5_000L
 
         @Volatile
         private var isServiceRunning = false
@@ -74,7 +79,19 @@ class LocationService : Service() {
                 Log.d(TAG, "onStartCommand: stop requested")
                 stopLocationTracking()
             }
-            else -> Log.w(TAG, "onStartCommand: unknown or null action, ignoring")
+            null -> {
+                if (hasAllPermissions() && hasActiveProvider()){
+                    val persistedTracking = readPersistedTracking()
+                    val persistedInterval = readPersistedIntervalMs() ?: DEFAULT_INTERVAL_MS
+                    if (persistedTracking && !isServiceRunning) {
+                        Log.w(TAG, "onStartCommand: null intent after restart; resuming tracking intervalMs=$persistedInterval")
+                        startLocationTracking(persistedInterval)
+                    } else {
+                        Log.d(TAG, "onStartCommand: null intent and no persisted tracking; ignoring")
+                    }
+                }
+            }
+            else -> Log.w(TAG, "onStartCommand: unknown action $action, ignoring")
         }
         return START_STICKY // Service will be restarted if killed by system
     }
@@ -83,6 +100,7 @@ class LocationService : Service() {
     private fun startLocationTracking(intervalMs: Long) {
         Log.d(TAG, "startLocationTracking: begin intervalMs=$intervalMs")
         isServiceRunning = true
+        persistServiceState(true, intervalMs)
 
         locationClient.getLocationUpdates(intervalMs).catch { exception ->
             Log.e(TAG, "startLocationTracking: location stream error", exception)
@@ -184,6 +202,7 @@ class LocationService : Service() {
     private fun stopLocationTracking() {
         Log.d(TAG, "stopLocationTracking: begin")
         isServiceRunning = false
+        persistServiceState(false, null)
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
         Log.d(TAG, "stopLocationTracking: isServiceRunning=$isServiceRunning")
@@ -192,7 +211,28 @@ class LocationService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         isServiceRunning = false
+        persistServiceState(false, null)
         serviceScope.cancel("Location Service is being destroyed")
         Log.d(TAG, "onDestroy: isServiceRunning=$isServiceRunning")
+    }
+
+    private fun persistServiceState(isTracking: Boolean, intervalMs: Long?) {
+        runCatching {
+            runBlocking { prefsManager.setTrackingState(isTracking, intervalMs) }
+        }.onFailure { error ->
+            Log.w(TAG, "persistServiceState: failed to save state", error)
+        }
+    }
+
+    private fun readPersistedTracking(): Boolean {
+        return runCatching {
+            runBlocking { prefsManager.getTrackingStateSync() }
+        }.getOrElse { false }
+    }
+
+    private fun readPersistedIntervalMs(): Long? {
+        return runCatching {
+            runBlocking { prefsManager.getTrackingIntervalSync() }
+        }.getOrNull()
     }
 }

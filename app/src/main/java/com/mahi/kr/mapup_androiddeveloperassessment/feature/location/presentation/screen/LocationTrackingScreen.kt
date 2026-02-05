@@ -66,10 +66,10 @@ fun LocationTrackingScreen(
                 }
 
                 is LocationEvent.ProviderDisabled -> {
-                        snackbarHostState.showSnackbar(
-                            message = event.message,
-                            duration = SnackbarDuration.Short
-                        )
+                    snackbarHostState.showSnackbar(
+                        message = event.message,
+                        duration = SnackbarDuration.Short
+                    )
                 }
             }
         }
@@ -415,7 +415,7 @@ private fun SessionCard(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = if (isActive) "🔴 Active Session" else "📍 Session",
+                            text = if (isActive) "🟢 Active Session" else "📍 Session",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = if (isActive) {
@@ -488,7 +488,7 @@ private fun SessionCard(
                     ) {
                         if (isActive) {
                             Text(
-                                text = "🔴",
+                                text = "🟢",
                                 style = MaterialTheme.typography.bodyMedium
                             )
                         }
