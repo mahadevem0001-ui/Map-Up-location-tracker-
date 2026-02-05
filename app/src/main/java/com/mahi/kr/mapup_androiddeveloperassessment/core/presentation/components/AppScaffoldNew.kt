@@ -92,12 +92,12 @@ fun AppScaffoldWithDrawer(
                         IconButton(
                             onClick = {
                                 themeViewModel.toggleTheme(isDarkMode)
-                                scope.launch {
-                                    snackbarHostState.showSnackbar(
-                                        message = if (isDarkMode) "Light Mode" else "Dark Mode",
-                                        duration = SnackbarDuration.Short
-                                    )
-                                }
+//                                scope.launch {
+//                                    snackbarHostState.showSnackbar(
+//                                        message = if (isDarkMode) "Light Mode" else "Dark Mode",
+//                                        duration = SnackbarDuration.Short
+//                                    )
+//                                }
                             }
                         ) {
                             Icon(

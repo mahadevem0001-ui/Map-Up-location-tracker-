@@ -63,12 +63,12 @@ fun AppScaffold(
                     isDarkMode = isDarkMode,
                     onToggle = {
                         themeViewModel.toggleTheme(isDarkMode)
-                        scope.launch {
-                            snackbarHostState.showSnackbar(
-                                message = if (isDarkMode) "Switched to Light Mode" else "Switched to Dark Mode",
-                                duration = SnackbarDuration.Short
-                            )
-                        }
+//                        scope.launch {
+//                            snackbarHostState.showSnackbar(
+//                                message = if (isDarkMode) "Switched to Light Mode" else "Switched to Dark Mode",
+//                                duration = SnackbarDuration.Short
+//                            )
+//                        }
                     }
                 )
             }
@@ -118,12 +118,12 @@ fun AppScaffoldWithSnackbar(
                     isDarkMode = isDarkMode,
                     onToggle = {
                         themeViewModel.toggleTheme(isDarkMode)
-                        scope.launch {
-                            snackbarHostState.showSnackbar(
-                                message = if (isDarkMode) "Switched to Light Mode" else "Switched to Dark Mode",
-                                duration = SnackbarDuration.Short
-                            )
-                        }
+//                        scope.launch {
+//                            snackbarHostState.showSnackbar(
+//                                message = if (isDarkMode) "Switched to Light Mode" else "Switched to Dark Mode",
+//                                duration = SnackbarDuration.Short
+//                            )
+//                        }
                     }
                 )
             }

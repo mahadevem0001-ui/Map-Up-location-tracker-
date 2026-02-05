@@ -59,34 +59,41 @@ class LocationService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val action = intent?.action
-        Log.d(TAG, "onStartCommand: isServiceRunning $isServiceRunning action $action")
+        Log.d(TAG, "onStartCommand: isServiceRunning=$isServiceRunning action=$action")
         when (intent?.action) {
             ACTION_START -> {
                 if (!isServiceRunning) {
-                    // Get interval from intent, default to 5 seconds if not provided
                     val intervalMs = intent.getLongExtra(EXTRA_LOCATION_INTERVAL, DEFAULT_INTERVAL_MS)
-                    Log.d(TAG, "onStartCommand: Starting with interval $intervalMs ms")
+                    Log.d(TAG, "onStartCommand: starting with intervalMs=$intervalMs")
                     startLocationTracking(intervalMs)
+                } else {
+                    Log.d(TAG, "onStartCommand: start requested but already running; ignoring")
                 }
             }
-            ACTION_STOP -> stopLocationTracking()
+            ACTION_STOP -> {
+                Log.d(TAG, "onStartCommand: stop requested")
+                stopLocationTracking()
+            }
+            else -> Log.w(TAG, "onStartCommand: unknown or null action, ignoring")
         }
         return START_STICKY // Service will be restarted if killed by system
     }
 
 
     private fun startLocationTracking(intervalMs: Long) {
+        Log.d(TAG, "startLocationTracking: begin intervalMs=$intervalMs")
         isServiceRunning = true
 
         locationClient.getLocationUpdates(intervalMs).catch { exception ->
-            exception.printStackTrace()
+            Log.e(TAG, "startLocationTracking: location stream error", exception)
         }.onEach { location ->
-            Log.d(TAG, "startLocationTracking: location $location ")
+            Log.d(TAG, "startLocationTracking: location lat=${location.latitude} lng=${location.longitude} acc=${location.accuracy}")
 
             // Update notification with current location data
             // Use same interval as location updates for consistency
             val currentTime = System.currentTimeMillis()
             if (currentTime - lastNotificationUpdateTime >= intervalMs) {
+                Log.d(TAG, "startLocationTracking: updating notification (throttled)")
                 updateNotificationWithLocation(location.latitude, location.longitude)
                 lastNotificationUpdateTime = currentTime
             }
@@ -175,16 +182,17 @@ class LocationService : Service() {
     }
 
     private fun stopLocationTracking() {
+        Log.d(TAG, "stopLocationTracking: begin")
         isServiceRunning = false
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
-        Log.d(TAG, "stopLocationTracking: isServiceRunning $isServiceRunning ")
+        Log.d(TAG, "stopLocationTracking: isServiceRunning=$isServiceRunning")
     }
 
     override fun onDestroy() {
         super.onDestroy()
         isServiceRunning = false
         serviceScope.cancel("Location Service is being destroyed")
-        Log.d(TAG, "onDestroy: isServiceRunning $isServiceRunning ")
+        Log.d(TAG, "onDestroy: isServiceRunning=$isServiceRunning")
     }
 }

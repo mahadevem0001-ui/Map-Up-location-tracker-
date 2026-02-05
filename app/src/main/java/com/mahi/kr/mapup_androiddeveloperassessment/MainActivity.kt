@@ -1,8 +1,8 @@
 package com.mahi.kr.mapup_androiddeveloperassessment
 
-import android.Manifest
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.ViewGroup
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -77,17 +77,21 @@ class MainActivity : ComponentActivity() {
 
                     // Monitor permission state and stop service if location permissions are removed
                     LaunchedEffect(permissionState.deniedPermissions) {
-                        val locationPermissionsDenied = permissionState.deniedPermissions.keys.any { permission ->
-                            permission == Manifest.permission.ACCESS_FINE_LOCATION ||
-                            permission == Manifest.permission.ACCESS_COARSE_LOCATION
-                        }
+                        val permissionsDenied = permissionState.deniedPermissions.isNotEmpty()
 
+                        Log.d(
+                            this::class.simpleName,
+                            "onCreate: locationPermissionsDenied $permissionsDenied LocationService.isRunning() ${LocationService.isRunning()}"
+                        )
                         // If location permissions are denied and service is running, stop it
-                        if (locationPermissionsDenied && LocationService.isRunning()) {
-                            val intent = Intent(this@MainActivity, LocationService::class.java).apply {
-                                action = LocationService.ACTION_STOP
-                            }
-                            startService(intent)
+                        if (permissionsDenied && LocationService.isRunning()) {
+//                            Intent(this@MainActivity, LocationService::class.java).apply {
+//                                action = LocationService.ACTION_STOP
+//                            }.also {
+//                                startService(it)
+//                            }
+                            locationViewModel.stopLocationService()
+
                         }
                     }
 
@@ -99,7 +103,8 @@ class MainActivity : ComponentActivity() {
                         // Show LocationTrackingScreen if all permissions are granted
                         // Otherwise show PermissionScreen
                         if (permissionState.deniedPermissions.isEmpty() &&
-                            permissionState.hasRequestedPermissionsBefore) {
+                            permissionState.hasRequestedPermissionsBefore
+                        ) {
                             LocationTrackingScreen(snackbarHostState = snackbarHostState)
                         } else {
                             PermissionScreen(snackbarHostState = snackbarHostState)

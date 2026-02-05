@@ -1,5 +1,6 @@
 package com.mahi.kr.mapup_androiddeveloperassessment.feature.location.presentation.screen
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -9,19 +10,24 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.mahi.kr.mapup_androiddeveloperassessment.core.util.extensions.hasAllPermissions
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.domain.model.LocationData
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.domain.model.LocationSession
+import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.presentation.model.LocationEvent
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.presentation.components.SessionMapDialog
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.presentation.viewmodel.LocationViewModel
 import org.koin.compose.viewmodel.koinViewModel
+import kotlinx.coroutines.flow.collectLatest
 
 /**
  * Screen for displaying location tracking controls and location history
@@ -38,17 +44,34 @@ fun LocationTrackingScreen(
     viewModel: LocationViewModel = koinViewModel(),
     snackbarHostState: SnackbarHostState
 ) {
+    val context = LocalContext.current
     val state by viewModel.state.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
 
-    // Show error in Snackbar
-    LaunchedEffect(state.error) {
-        state.error?.let { error ->
-            snackbarHostState.showSnackbar(
-                message = error,
-                duration = SnackbarDuration.Short
-            )
-            viewModel.clearError()
+    LaunchedEffect(Unit) {
+        viewModel.events.collectLatest { event ->
+            when (event) {
+                is LocationEvent.ShowMessage -> snackbarHostState.showSnackbar(
+                    message = event.message,
+                    duration = SnackbarDuration.Short
+                )
+
+                is LocationEvent.PermissionRevoked -> {
+                    if (!context.hasAllPermissions()) {
+                        snackbarHostState.showSnackbar(
+                            message = event.message,
+                            duration = SnackbarDuration.Short
+                        )
+                    }
+                }
+
+                is LocationEvent.ProviderDisabled -> {
+                        snackbarHostState.showSnackbar(
+                            message = event.message,
+                            duration = SnackbarDuration.Short
+                        )
+                }
+            }
         }
     }
 
@@ -66,12 +89,12 @@ fun LocationTrackingScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Header
-        Text(
-            text = "Location Tracking",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold
-        )
+//        // Header
+//        Text(
+//            text = "Location Tracking",
+//            style = MaterialTheme.typography.headlineMedium,
+//            fontWeight = FontWeight.Bold
+//        )
 
         // Service Status Card
         Card(
@@ -132,7 +155,7 @@ fun LocationTrackingScreen(
         }
 
         // Interval Configuration Card (only show when not tracking)
-        if (!state.isServiceRunning) {
+        AnimatedVisibility(visible = !state.isServiceRunning) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
@@ -171,7 +194,7 @@ fun LocationTrackingScreen(
                     }
 
                     // Interval selection chips
-                    Row(
+                    /*Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
@@ -188,6 +211,35 @@ fun LocationTrackingScreen(
                                 label = {
                                     Text(
                                         text = if (seconds < 60) "${seconds}s" else "1m",
+                                        style = MaterialTheme.typography.labelMedium
+                                    )
+                                }
+                            )
+                        }
+                    }*/
+                    FlowRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .align(Alignment.CenterHorizontally),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(1.dp),
+                    ) {
+                        Text(
+                            text = "Quick:",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        listOf(1, 5, 10, 30, 60, 120, 180, 240).forEach { seconds ->
+                            FilterChip(
+                                selected = state.locationIntervalSeconds == seconds,
+                                onClick = { viewModel.updateLocationInterval(seconds) },
+                                label = {
+                                    Text(
+                                        text = when {
+                                            seconds < 60 -> "${seconds}s"
+                                            seconds % 60 == 0 -> "${seconds / 60}m"
+                                            else -> "${seconds}s"
+                                        },
                                         style = MaterialTheme.typography.labelMedium
                                     )
                                 }
@@ -226,7 +278,7 @@ fun LocationTrackingScreen(
                 )
             ) {
                 Icon(
-                    imageVector = Icons.Default.Delete,
+                    imageVector = Icons.Default.Pause,
                     contentDescription = "Stop",
                     modifier = Modifier.size(20.dp)
                 )
@@ -448,7 +500,7 @@ private fun SessionCard(
                 }
 
                 // Location list (expandable)
-                if (expanded) {
+                AnimatedVisibility(visible = expanded) {
                     Column(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {

@@ -1,6 +1,8 @@
 package com.mahi.kr.mapup_androiddeveloperassessment.feature.permission.presentation.screen
 
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -21,6 +23,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mahi.kr.mapup_androiddeveloperassessment.core.util.compose.ObserveAsEvents
 import com.mahi.kr.mapup_androiddeveloperassessment.core.util.extensions.openAppSettings
+import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.data.LocationService
+import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.presentation.viewmodel.LocationViewModel
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.permission.domain.model.DeniedPermissionInfo
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.permission.presentation.components.DeniedPermissionItem
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.permission.presentation.components.LocationPermissionInfoCard
@@ -48,8 +52,12 @@ fun PermissionScreen(
     viewModel: PermissionViewModel = /*viewModel(factory = PermissionViewModel.Factory)*/koinViewModel<PermissionViewModel>(),
     snackbarHostState: SnackbarHostState
 ) {
+    val logTag = "PermissionScreen"
     val context = LocalContext.current
     val activity = context as? ComponentActivity ?: return
+
+    // Location ViewModel to stop tracking when permissions are revoked
+    val locationViewModel: LocationViewModel = koinViewModel()
 
     val state by viewModel.state.collectAsStateWithLifecycle()
 
@@ -61,6 +69,7 @@ fun PermissionScreen(
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
+        Log.d(logTag, "Permission launcher result: ${permissions.map { it.key to it.value }}")
         permissions.entries.forEach { entry ->
             val permission = entry.key
             val isGranted = entry.value
@@ -73,6 +82,11 @@ fun PermissionScreen(
                     shouldShowRationale = shouldShowRationale
                 )
             )
+
+            if (!isGranted/* && (permission == android.Manifest.permission.ACCESS_FINE_LOCATION || permission == android.Manifest.permission.ACCESS_COARSE_LOCATION)*/) {
+                Log.w(logTag, "Location permission denied from launcher: $permission")
+                locationViewModel.handlePermissionRevokedFromUi()
+            }
         }
     }
 
@@ -81,13 +95,15 @@ fun PermissionScreen(
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
+                Log.d(logTag, "Lifecycle ON_RESUME: re-checking permissions")
                 PermissionViewModel.requiredPermissionsSet.forEach { permission ->
                     val isGranted = ContextCompat.checkSelfPermission(
                         activity,
                         permission
                     ) == PackageManager.PERMISSION_GRANTED
 
-                    val shouldShowRationale = activity.shouldShowRequestPermissionRationale(permission)
+                    val shouldShowRationale =
+                        activity.shouldShowRequestPermissionRationale(permission)
 
                     viewModel.onAction(
                         PermissionAction.PermissionStateChange(
@@ -96,6 +112,11 @@ fun PermissionScreen(
                             shouldShowRationale = shouldShowRationale
                         )
                     )
+
+                    if (!isGranted /*&& (permission == android.Manifest.permission.ACCESS_FINE_LOCATION || permission == android.Manifest.permission.ACCESS_COARSE_LOCATION)*/) {
+                        Log.w(logTag, "Location permission missing on resume: $permission")
+                        locationViewModel.handlePermissionRevokedFromUi()
+                    }
                 }
             }
         }
@@ -104,11 +125,20 @@ fun PermissionScreen(
             lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
+//    LaunchedEffect(Unit) {
+//        Log.d(logTag, "LaunchedEffect: sending ACTION_STOP to LocationService on entry")
+//        Intent(context, LocationService::class.java).apply {
+//            action = LocationService.ACTION_STOP
+//        }.also {
+//            context.startService(it)
+//        }
+//    }
 
     // Observe events
     ObserveAsEvents(flow = viewModel.events) { event ->
         when (event) {
             is PermissionEvent.ShowProminentDeniedPermissionsDialog -> {
+                Log.d(logTag, "ShowProminentDeniedPermissionsDialog for ${event.deniedPermissions.size} perms")
                 deniedPermissionsList = event.deniedPermissions
                 showProminentDialog = true
             }
@@ -118,40 +148,115 @@ fun PermissionScreen(
 //    AppScaffold(
 //        modifier = Modifier.fillMaxSize()
 //    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
 //                .padding(paddingValues)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Header
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // Header
+        Text(
+            text = "Permission Management",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold
+        )
+
+        // Content based on state
+        if (!state.hasRequestedPermissionsBefore) {
+            // Informative view
             Text(
-                text = "Permission Management",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold
+                text = "This app requires the following permissions to function properly:",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            // Content based on state
-            if (!state.hasRequestedPermissionsBefore) {
-                // Informative view
-                Text(
-                    text = "This app requires the following permissions to function properly:",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            Spacer(modifier = Modifier.height(8.dp))
 
-                Spacer(modifier = Modifier.height(8.dp))
+            // Group permissions
+            val groupedPermissions = PermissionViewModel.requiredPermissionsSet
+                .groupBy { permission ->
+                    when (permission) {
+                        android.Manifest.permission.ACCESS_FINE_LOCATION,
+                        android.Manifest.permission.ACCESS_COARSE_LOCATION -> "location"
 
-                // Group permissions
-                val groupedPermissions = PermissionViewModel.requiredPermissionsSet
-                    .groupBy { permission ->
-                        when (permission) {
-                            android.Manifest.permission.ACCESS_FINE_LOCATION,
-                            android.Manifest.permission.ACCESS_COARSE_LOCATION -> "location"
-                            else -> permission
-                        }
+                        else -> permission
                     }
+                }
+
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(
+                    items = groupedPermissions.entries.toList(),
+                    key = { it.key }
+                ) { entry ->
+                    if (entry.key == "location") {
+                        LocationPermissionInfoCard(
+                            permissions = entry.value,
+                            viewModel = viewModel,
+                            state = state
+                        )
+                    } else {
+                        PermissionInfoCard(
+                            permission = entry.value.first(),
+                            viewModel = viewModel,
+                            state = state
+                        )
+                    }
+                }
+            }
+        } else {
+            // Status view
+            Text(
+                text = "Permission Status:",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        // Request button
+        Button(
+            onClick = {
+                Log.d(logTag, "Request permissions button clicked")
+                viewModel.onAction(PermissionAction.MarkPermissionsRequested)
+
+                PermissionViewModel.requiredPermissionsSet.forEach { permission ->
+                    val shouldShowRationale =
+                        activity.shouldShowRequestPermissionRationale(permission)
+                    viewModel.onAction(
+                        PermissionAction.UpdateShouldShowRationale(
+                            permission = permission,
+                            shouldShowRationale = shouldShowRationale
+                        )
+                    )
+                }
+
+                permissionLauncher.launch(
+                    PermissionViewModel.requiredPermissionsSet.toTypedArray()
+                )
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                if (!state.hasRequestedPermissionsBefore) "Request Permissions"
+                else "Request Permissions Again"
+            )
+        }
+
+        // Denied permissions section
+        if (state.hasRequestedPermissionsBefore) {
+            HorizontalDivider()
+
+            if (state.deniedPermissions.isNotEmpty()) {
+                Text(
+                    text = "Denied Permissions (${state.deniedPermissions.size})",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
 
                 LazyColumn(
                     modifier = Modifier
@@ -160,111 +265,39 @@ fun PermissionScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(
-                        items = groupedPermissions.entries.toList(),
-                        key = { it.key }
-                    ) { entry ->
-                        if (entry.key == "location") {
-                            LocationPermissionInfoCard(
-                                permissions = entry.value,
-                                viewModel = viewModel,
-                                state = state
-                            )
-                        } else {
-                            PermissionInfoCard(
-                                permission = entry.value.first(),
-                                viewModel = viewModel,
-                                state = state
-                            )
-                        }
+                        items = state.deniedPermissions.values.toList(),
+                        key = { it.permission }
+                    ) { deniedInfo ->
+                        DeniedPermissionItem(
+                            deniedInfo = deniedInfo,
+                            viewModel = viewModel
+                        )
                     }
                 }
             } else {
-                // Status view
-                Text(
-                    text = "Permission Status:",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            // Request button
-            Button(
-                onClick = {
-                    viewModel.onAction(PermissionAction.MarkPermissionsRequested)
-
-                    PermissionViewModel.requiredPermissionsSet.forEach { permission ->
-                        val shouldShowRationale = activity.shouldShowRequestPermissionRationale(permission)
-                        viewModel.onAction(
-                            PermissionAction.UpdateShouldShowRationale(
-                                permission = permission,
-                                shouldShowRationale = shouldShowRationale
-                            )
-                        )
-                    }
-
-                    permissionLauncher.launch(
-                        PermissionViewModel.requiredPermissionsSet.toTypedArray()
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
                     )
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    if (!state.hasRequestedPermissionsBefore) "Request Permissions"
-                    else "Request Permissions Again"
-                )
-            }
-
-            // Denied permissions section
-            if (state.hasRequestedPermissionsBefore) {
-                HorizontalDivider()
-
-                if (state.deniedPermissions.isNotEmpty()) {
-                    Text(
-                        text = "Denied Permissions (${state.deniedPermissions.size})",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-
-                    LazyColumn(
+                ) {
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.Center
                     ) {
-                        items(
-                            items = state.deniedPermissions.values.toList(),
-                            key = { it.permission }
-                        ) { deniedInfo ->
-                            DeniedPermissionItem(
-                                deniedInfo = deniedInfo,
-                                viewModel = viewModel
-                            )
-                        }
-                    }
-                } else {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer
+                        Text(
+                            text = "✓ All permissions granted",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            fontWeight = FontWeight.SemiBold
                         )
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Text(
-                                text = "✓ All permissions granted",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
                     }
                 }
             }
         }
+    }
 //    }
 
     // Prominent dialog
