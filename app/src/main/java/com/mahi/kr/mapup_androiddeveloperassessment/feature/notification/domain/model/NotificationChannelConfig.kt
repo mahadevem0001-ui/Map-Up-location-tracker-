@@ -1,4 +1,4 @@
-package com.mahi.kr.mapup_androiddeveloperassessment.domain.notification.model
+package com.mahi.kr.mapup_androiddeveloperassessment.feature.notification.domain.model
 
 import android.app.NotificationManager
 
