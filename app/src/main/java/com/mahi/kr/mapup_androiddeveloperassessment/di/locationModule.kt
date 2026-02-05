@@ -8,6 +8,8 @@ import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.data.local.
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.data.repository.LocationSessionRepositoryImpl
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.domain.ILocationClient
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.domain.repository.LocationSessionRepository
+import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.domain.usecase.ExportSessionToCsvUseCase
+import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.domain.usecase.ExportSessionToGpxUseCase
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.presentation.viewmodel.LocationViewModel
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.notification.domain.usecase.BuildNotificationUseCase
 import org.koin.android.ext.koin.androidContext
@@ -44,6 +46,8 @@ val locationModule = module {
 
     // Provide use cases
     factoryOf(::BuildNotificationUseCase)
+    factory { ExportSessionToCsvUseCase(androidContext()) }
+    factory { ExportSessionToGpxUseCase(androidContext()) }
 
     // Provide ViewModel
     viewModelOf(::LocationViewModel)

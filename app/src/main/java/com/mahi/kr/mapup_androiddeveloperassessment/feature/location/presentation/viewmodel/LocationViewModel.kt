@@ -14,6 +14,8 @@ import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.domain.ILoc
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.domain.model.LocationData
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.domain.model.LocationSession
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.domain.repository.LocationSessionRepository
+import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.domain.usecase.ExportSessionToCsvUseCase
+import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.domain.usecase.ExportSessionToGpxUseCase
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -37,7 +39,9 @@ import kotlinx.coroutines.launch
 class LocationViewModel(
     private val application: Application,
     private val locationClient: ILocationClient,
-    private val repository: LocationSessionRepository
+    private val repository: LocationSessionRepository,
+    private val exportToCsvUseCase: ExportSessionToCsvUseCase,
+    private val exportToGpxUseCase: ExportSessionToGpxUseCase
 ) : AndroidViewModel(application) {
 
     companion object {
@@ -351,6 +355,56 @@ class LocationViewModel(
                 .onError { error ->
                     _state.update { it.copy(error = error.toUiText().toString()) }
                 }
+        }
+    }
+
+    /**
+     * Export all sessions to CSV format
+     */
+    fun exportSessionsToCsv() {
+        viewModelScope.launch {
+            try {
+                val allSessions = if (_state.value.currentSession != null) {
+                    _state.value.sessions + _state.value.currentSession!!
+                } else {
+                    _state.value.sessions
+                }
+
+                if (allSessions.isEmpty()) {
+                    _state.update { it.copy(error = "No sessions to export") }
+                    return@launch
+                }
+
+                val file = exportToCsvUseCase.execute(allSessions)
+                exportToCsvUseCase.shareFile(file)
+            } catch (e: Exception) {
+                _state.update { it.copy(error = "Export failed: ${e.message}") }
+            }
+        }
+    }
+
+    /**
+     * Export all sessions to GPX format
+     */
+    fun exportSessionsToGpx() {
+        viewModelScope.launch {
+            try {
+                val allSessions = if (_state.value.currentSession != null) {
+                    _state.value.sessions + _state.value.currentSession!!
+                } else {
+                    _state.value.sessions
+                }
+
+                if (allSessions.isEmpty()) {
+                    _state.update { it.copy(error = "No sessions to export") }
+                    return@launch
+                }
+
+                val file = exportToGpxUseCase.execute(allSessions)
+                exportToGpxUseCase.shareFile(file)
+            } catch (e: Exception) {
+                _state.update { it.copy(error = "Export failed: ${e.message}") }
+            }
         }
     }
 

@@ -14,7 +14,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.mahi.kr.mapup_androiddeveloperassessment.core.presentation.components.AppScaffold
+import com.mahi.kr.mapup_androiddeveloperassessment.core.presentation.components.AppScaffoldWithDrawer
 import com.mahi.kr.mapup_androiddeveloperassessment.core.presentation.viewmodel.ThemeViewModel
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.data.LocationService
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.presentation.screen.LocationTrackingScreen
@@ -54,11 +54,13 @@ class MainActivity : ComponentActivity() {
             val locationState by locationViewModel.state.collectAsStateWithLifecycle()
 
             MapUpAndroidDeveloperAssessmentTheme(darkTheme = darkTheme) {
-                com.mahi.kr.mapup_androiddeveloperassessment.core.presentation.components.AppScaffoldWithDrawer(
+                AppScaffoldWithDrawer(
                     modifier = Modifier.fillMaxSize(),
                     title = "Location Tracking",
                     currentSession = locationState.currentSession,
                     sessions = locationState.sessions,
+                    onExportCsv = { locationViewModel.exportSessionsToCsv() },
+                    onExportGpx = { locationViewModel.exportSessionsToGpx() },
                     themeViewModel = themeViewModel
                 ) { paddingValues, snackbarHostState ->
 

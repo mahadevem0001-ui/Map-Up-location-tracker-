@@ -33,6 +33,8 @@ fun AppScaffoldWithDrawer(
     title: String = "Location Tracking",
     currentSession: LocationSession? = null,
     sessions: List<LocationSession> = emptyList(),
+    onExportCsv: () -> Unit = {},
+    onExportGpx: () -> Unit = {},
     themeViewModel: ThemeViewModel = viewModel(),
     content: @Composable (paddingValue: PaddingValues, snackbarHostState: SnackbarHostState) -> Unit
 ) {
@@ -55,6 +57,8 @@ fun AppScaffoldWithDrawer(
                 DrawerContent(
                     currentSession = currentSession,
                     sessions = sessions,
+                    onExportCsv = onExportCsv,
+                    onExportGpx = onExportGpx,
                     onCloseDrawer = {
                         scope.launch { drawerState.close() }
                     }
@@ -120,6 +124,8 @@ fun AppScaffoldWithDrawer(
 private fun DrawerContent(
     currentSession: LocationSession?,
     sessions: List<LocationSession>,
+    onExportCsv: () -> Unit,
+    onExportGpx: () -> Unit,
     onCloseDrawer: () -> Unit
 ) {
     Column(
@@ -230,6 +236,37 @@ private fun DrawerContent(
         }
 
         Spacer(modifier = Modifier.weight(1f))
+
+        // Export Section
+        if (sessions.isNotEmpty() || currentSession != null) {
+            HorizontalDivider()
+
+            Text(
+                text = "Export Data",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = onExportCsv,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("CSV")
+                }
+
+                OutlinedButton(
+                    onClick = onExportGpx,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("GPX")
+                }
+            }
+        }
 
         // Close button
         TextButton(
