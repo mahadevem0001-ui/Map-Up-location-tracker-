@@ -85,7 +85,22 @@ class LocationViewModel(
                 .collect { result ->
                     when (result) {
                         is Result.Success -> {
-                            _state.update { it.copy(sessions = result.data) }
+                            // Separate active and completed sessions
+                            val allSessions = result.data
+                            val activeSession = allSessions.find { it.isActive() }
+                            val completedSessions = allSessions.filter { !it.isActive() }
+
+                            _state.update { currentState ->
+                                currentState.copy(
+                                    sessions = completedSessions,
+                                    currentSession = activeSession ?: currentState.currentSession
+                                )
+                            }
+
+                            // If there's an active session, set the currentSessionId
+                            if (activeSession != null) {
+                                currentSessionId = activeSession.sessionId
+                            }
                         }
                         is Result.Error -> {
                             _state.update { it.copy(error = result.error.toUiText().toString()) }
@@ -96,26 +111,11 @@ class LocationViewModel(
     }
 
     /**
-     * Check for active session in database
+     * Check for active session in database (now redundant as loadSessionsFromDatabase handles it)
      */
     private fun checkForActiveSession() {
-        viewModelScope.launch {
-            repository.getActiveSession()
-                .onSuccess { activeSession ->
-                    if (activeSession != null) {
-                        currentSessionId = activeSession.sessionId
-                        _state.update {
-                            it.copy(
-                                currentSession = activeSession,
-                                currentLocation = activeSession.locations.lastOrNull()
-                            )
-                        }
-                    }
-                }
-                .onError { error ->
-                    _state.update { it.copy(error = error.toUiText().toString()) }
-                }
-        }
+        // This is now handled by loadSessionsFromDatabase
+        // Keeping this method for backward compatibility
     }
 
     /**
