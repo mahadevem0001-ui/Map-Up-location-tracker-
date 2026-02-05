@@ -14,6 +14,7 @@ kotlinxSerialization = "1.10.0"
 koin = "4.1.1"
 gmsMaps = "20.0.0"
 gmsLocation = "21.3.0"
+mapsCompose = "8.0.1"
 room = "2.7.0-alpha11"
 ksp = "2.0.20-1.0.24"
 
@@ -46,6 +47,8 @@ koin-compose-viewmodel = { module = "io.insert-koin:koin-compose-viewmodel", ver
 
 gms-maps = { group = "com.google.android.gms", name = "play-services-maps", version.ref = "gmsMaps" }
 gms-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "gmsLocation" }
+maps-compose = { group = "com.google.maps.android", name = "maps-compose", version.ref = "mapsCompose" }
+maps-compose-utils = { group = "com.google.maps.android", name = "maps-compose-utils", version.ref = "mapsCompose" }
 
 
 room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
@@ -56,7 +59,9 @@ room-compiler = { group = "androidx.room", name = "room-compiler", version.ref =
 [bundles]
 gms = [
     "gms-maps",
-    "gms-location"
+    "gms-location",
+    "maps-compose",
+    "maps-compose-utils"
 ]
 
 [plugins]

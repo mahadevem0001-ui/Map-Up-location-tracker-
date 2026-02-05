@@ -3,6 +3,7 @@ package com.mahi.kr.mapup_androiddeveloperassessment
 import android.Manifest
 import android.content.Intent
 import android.os.Bundle
+import android.view.ViewGroup
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -11,8 +12,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mahi.kr.mapup_androiddeveloperassessment.core.presentation.components.AppScaffoldWithDrawer
 import com.mahi.kr.mapup_androiddeveloperassessment.core.presentation.viewmodel.ThemeViewModel
@@ -37,7 +40,15 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // Disable motion-event splitting early to prevent InputDispatcher crash on some devices
+        (window?.decorView as? ViewGroup)?.isMotionEventSplittingEnabled = false
         setContent {
+
+            // Reinforce motion-event splitting disable after compose view attaches
+            val composeView = LocalView.current
+            SideEffect {
+                (composeView.parent as? ViewGroup)?.isMotionEventSplittingEnabled = false
+            }
 
             val themeViewModel: ThemeViewModel = koinViewModel<ThemeViewModel>()
             val themeMode by themeViewModel.isDarkMode.collectAsStateWithLifecycle()

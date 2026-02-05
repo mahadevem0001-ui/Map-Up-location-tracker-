@@ -3,6 +3,8 @@ package com.mahi.kr.mapup_androiddeveloperassessment.feature.location.data
 import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
+import android.location.Geocoder
+import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.domain.ILocationClient
@@ -31,9 +33,11 @@ class LocationService : Service() {
     private val buildNotificationUseCase: BuildNotificationUseCase by inject()
 
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val geocoder: Geocoder by lazy { Geocoder(this, java.util.Locale.getDefault()) }
 
     // Track last notification update time to avoid spamming
     private var lastNotificationUpdateTime = 0L
+    private var currentLocationAddress: String? = null
 
     companion object {
         private const val TAG = "LocationService"
@@ -108,17 +112,66 @@ class LocationService : Service() {
     private fun updateNotificationWithLocation(latitude: Double, longitude: Double) {
         val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
 
+        // Get address in background
+        getAddressFromLocation(latitude, longitude) { address ->
+            currentLocationAddress = address
+        }
+
+        val locationText = buildString {
+            append("Lat: ${"%.6f".format(latitude)}, Lng: ${"%.6f".format(longitude)}")
+            currentLocationAddress?.let {
+                append("\n📍 $it")
+            }
+        }
+
         val notification = buildNotificationUseCase(
             NotificationConfig(
                 channelId = AppNotificationManager.LOCATION_CHANNEL_CONFIG.channelId,
                 notificationId = NOTIFICATION_ID,
                 title = "Location Tracking Active",
-                message = "Lat: ${"%.6f".format(latitude)}, Lng: ${"%.6f".format(longitude)}",
+                message = locationText,
                 smallIconRes = android.R.drawable.stat_notify_sync,
             )
         )
 
         notificationManager.notify(NOTIFICATION_ID, notification)
+    }
+
+    /**
+     * Get address from coordinates using reverse geocoding
+     */
+    private fun getAddressFromLocation(latitude: Double, longitude: Double, callback: (String?) -> Unit) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                // Android 13+ async API
+                geocoder.getFromLocation(latitude, longitude, 1) { addresses ->
+                    val address = addresses.firstOrNull()?.let { addr ->
+                        // Build concise address
+                        buildString {
+                            addr.featureName?.let { append("$it, ") }
+                            addr.locality?.let { append("$it, ") }
+                            addr.adminArea?.let { append(it) }
+                        }.takeIf { it.isNotBlank() }
+                    }
+                    callback(address)
+                }
+            } else {
+                // Older Android versions - synchronous (deprecated but needed for compatibility)
+                @Suppress("DEPRECATION")
+                val addresses = geocoder.getFromLocation(latitude, longitude, 1)
+                val address = addresses?.firstOrNull()?.let { addr ->
+                    buildString {
+                        addr.featureName?.let { append("$it, ") }
+                        addr.locality?.let { append("$it, ") }
+                        addr.adminArea?.let { append(it) }
+                    }.takeIf { it.isNotBlank() }
+                }
+                callback(address)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting address: ${e.message}")
+            callback(null)
+        }
     }
 
     private fun stopLocationTracking() {

@@ -10,7 +10,8 @@ data class LocationData(
     val accuracy: Float? = null,
     val altitude: Double? = null,
     val speed: Float? = null,
-    val bearing: Float? = null // Direction of travel in degrees (0-360), null if stationary
+    val bearing: Float? = null, // Direction of travel in degrees (0-360), null if stationary
+    val address: String? = null // Reverse geocoded address
 ) {
     fun toDisplayString(): String {
         return "Lat: ${"%.6f".format(latitude)}, Lng: ${"%.6f".format(longitude)}"

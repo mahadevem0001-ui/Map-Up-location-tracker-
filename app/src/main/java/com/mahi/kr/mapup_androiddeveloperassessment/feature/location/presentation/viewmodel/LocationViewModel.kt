@@ -2,6 +2,8 @@ package com.mahi.kr.mapup_androiddeveloperassessment.feature.location.presentati
 
 import android.app.Application
 import android.content.Intent
+import android.location.Geocoder
+import android.os.Build
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -25,6 +27,8 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
 
 /**
  * ViewModel for managing location tracking
@@ -50,6 +54,9 @@ class LocationViewModel(
 
     private val _state = MutableStateFlow(LocationTrackingState())
     val state: StateFlow<LocationTrackingState> = _state.asStateFlow()
+
+    // Geocoder for reverse geocoding
+    private val geocoder: Geocoder by lazy { Geocoder(application, java.util.Locale.getDefault()) }
 
     // Job to control location updates collection
     private var locationUpdatesJob: Job? = null
@@ -258,6 +265,9 @@ class LocationViewModel(
                 }
             }
             .onEach { location ->
+                // Get address via reverse geocoding
+                val address = getAddressFromLocation(location.latitude, location.longitude)
+
                 val locationData = LocationData(
                     latitude = location.latitude,
                     longitude = location.longitude,
@@ -265,7 +275,8 @@ class LocationViewModel(
                     accuracy = location.accuracy,
                     altitude = location.altitude,
                     speed = location.speed,
-                    bearing = location.bearing
+                    bearing = location.bearing,
+                    address = address // Add reverse geocoded address
                 )
 
                 // Save location to database
@@ -405,6 +416,44 @@ class LocationViewModel(
             } catch (e: Exception) {
                 _state.update { it.copy(error = "Export failed: ${e.message}") }
             }
+        }
+    }
+
+    /**
+     * Get address from coordinates using reverse geocoding
+     * Returns null if geocoding fails or address not available
+     */
+    private suspend fun getAddressFromLocation(latitude: Double, longitude: Double): String? {
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                // Android 13+ async API
+                kotlinx.coroutines.suspendCancellableCoroutine { continuation ->
+                    geocoder.getFromLocation(latitude, longitude, 1) { addresses ->
+                        val address = addresses.firstOrNull()?.let { addr ->
+                            buildString {
+                                addr.thoroughfare?.let { append("$it, ") }
+                                addr.locality?.let { append("$it, ") }
+                                addr.adminArea?.let { append(it) }
+                            }.takeIf { it.isNotBlank() }
+                        }
+                        continuation.resume(address)
+                    }
+                }
+            } else {
+                // Older Android versions - synchronous (deprecated but needed for compatibility)
+                @Suppress("DEPRECATION")
+                val addresses = geocoder.getFromLocation(latitude, longitude, 1)
+                addresses?.firstOrNull()?.let { addr ->
+                    buildString {
+                        addr.thoroughfare?.let { append("$it, ") }
+                        addr.locality?.let { append("$it, ") }
+                        addr.adminArea?.let { append(it) }
+                    }.takeIf { it.isNotBlank() }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting address: ${e.message}")
+            null
         }
     }
 

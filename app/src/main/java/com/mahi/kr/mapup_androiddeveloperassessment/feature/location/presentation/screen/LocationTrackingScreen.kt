@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.domain.model.LocationData
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.domain.model.LocationSession
+import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.presentation.components.SessionMapDialog
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.presentation.viewmodel.LocationViewModel
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -322,6 +323,15 @@ private fun SessionCard(
 ) {
     // Active sessions are always expanded, completed sessions can be toggled
     var expanded by remember(isActive) { mutableStateOf(isActive) }
+    var showMapDialog by remember { mutableStateOf(false) }
+
+    // Show map dialog
+    if (showMapDialog && session.locations.isNotEmpty()) {
+        SessionMapDialog(
+            session = session,
+            onDismiss = { showMapDialog = false }
+        )
+    }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -379,17 +389,36 @@ private fun SessionCard(
                     }
                 }
 
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = session.getFormattedDuration(),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "${session.getLocationCount()} locations",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            text = session.getFormattedDuration(),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "${session.getLocationCount()} locations",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    // Map icon button
+                    if (session.locations.isNotEmpty()) {
+                        IconButton(
+                            onClick = { showMapDialog = true },
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.LocationOn,
+                                contentDescription = "View on Map",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
                 }
             }
 
@@ -469,46 +498,89 @@ private fun LocationItemInSession(location: LocationData) {
         // Location Details
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Text(
-                text = location.toDisplayString(),
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium
-            )
+            // Show address if available, otherwise coordinates
+            if (location.address != null) {
+                Text(
+                    text = location.address,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = location.toDisplayString(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                Text(
+                    text = location.toDisplayString(),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
             Text(
                 text = location.getFormattedTime(),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            // Additional metadata in a row
+            // ESSENTIAL METADATA - Speed, Accuracy, Bearing
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.padding(top = 2.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.padding(top = 4.dp)
             ) {
+                // Accuracy - ESSENTIAL
                 location.accuracy?.let { accuracy ->
-                    Text(
-                        text = "📍 ${"%.1f".format(accuracy)}m",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Column {
+                        Text(
+                            text = "🎯 Accuracy",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "${"%.1f".format(accuracy)}m",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
 
+                // Speed - ESSENTIAL
                 location.speed?.let { speed ->
-                    Text(
-                        text = "🚀 ${"%.1f".format(speed * 3.6f)} km/h", // Convert m/s to km/h
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Column {
+                        Text(
+                            text = "🚀 Speed",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "${"%.1f".format(speed * 3.6f)} km/h",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
 
-                location.getCompassDirection()?.let { direction ->
-                    Text(
-                        text = "🧭 $direction",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                // Bearing - ESSENTIAL
+                location.bearing?.let { bearing ->
+                    Column {
+                        Text(
+                            text = "🧭 Bearing",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "${bearing.toInt()}° ${location.getCompassDirection() ?: ""}",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
             }
         }
