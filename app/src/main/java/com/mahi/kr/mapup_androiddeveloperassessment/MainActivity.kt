@@ -16,6 +16,7 @@ import com.mahi.kr.mapup_androiddeveloperassessment.core.presentation.components
 import com.mahi.kr.mapup_androiddeveloperassessment.core.presentation.viewmodel.ThemeViewModel
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.permission.presentation.screen.PermissionScreen
 import com.mahi.kr.mapup_androiddeveloperassessment.ui.theme.MapUpAndroidDeveloperAssessmentTheme
+import org.koin.compose.viewmodel.koinViewModel
 
 /**
  * Main Activity - Entry point of the application
@@ -32,7 +33,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
 
-            val themeViewModel: ThemeViewModel = viewModel()
+            val themeViewModel: ThemeViewModel = koinViewModel<ThemeViewModel>()
             val themeMode by themeViewModel.isDarkMode.collectAsStateWithLifecycle()
             val systemInDarkTheme = isSystemInDarkTheme()
             val darkTheme = themeMode ?: systemInDarkTheme

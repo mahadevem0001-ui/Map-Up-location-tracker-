@@ -29,6 +29,7 @@ import com.mahi.kr.mapup_androiddeveloperassessment.feature.permission.presentat
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.permission.presentation.model.PermissionAction
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.permission.presentation.model.PermissionEvent
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.permission.presentation.viewmodel.PermissionViewModel
+import org.koin.compose.viewmodel.koinViewModel
 
 /**
  * Main permission screen that handles permission requests and displays permission states
@@ -44,7 +45,7 @@ import com.mahi.kr.mapup_androiddeveloperassessment.feature.permission.presentat
  */
 @Composable
 fun PermissionScreen(
-    viewModel: PermissionViewModel = viewModel(factory = PermissionViewModel.Factory),
+    viewModel: PermissionViewModel = /*viewModel(factory = PermissionViewModel.Factory)*/koinViewModel<PermissionViewModel>(),
     snackbarHostState: SnackbarHostState
 ) {
     val context = LocalContext.current

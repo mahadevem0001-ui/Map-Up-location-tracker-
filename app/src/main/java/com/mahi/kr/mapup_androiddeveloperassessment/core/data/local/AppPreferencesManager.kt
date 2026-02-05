@@ -23,13 +23,6 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
  * - Permission preferences (has requested permissions)
  * - Future preferences can be added here
  *
- * Benefits of unified approach:
- * - Single source of truth for all preferences
- * - Consistent API across the app
- * - Type-safe preference keys
- * - Reactive Flow-based updates
- * - Better performance (single DataStore instance)
- * - Easier to maintain and test
  */
 class AppPreferencesManager(private val context: Context) {
 
@@ -40,8 +33,6 @@ class AppPreferencesManager(private val context: Context) {
         // Permission preference keys
         private val KEY_HAS_REQUESTED_PERMISSIONS = booleanPreferencesKey("has_requested_permissions_before")
 
-        // Future preference keys can be added here
-        // private val KEY_EXAMPLE = stringPreferencesKey("example_key")
     }
 
     // ========== Theme Preferences ==========

@@ -29,7 +29,7 @@ import kotlinx.coroutines.launch
  * - Send one-time events to UI (prominent dialogs)
  * - Handle permission state changes from UI
  */
-class PermissionViewModel(application: Application) : AndroidViewModel(application) {
+class PermissionViewModel(application: Application, val prefsManager : AppPreferencesManager) : AndroidViewModel(application) {
 
     companion object {
         const val TAG = "PermissionViewModel"
@@ -46,27 +46,28 @@ class PermissionViewModel(application: Application) : AndroidViewModel(applicati
             }
         }
 
-        /**
-         * Factory for creating PermissionViewModel instances
-         * Required because AndroidViewModel needs Application parameter
-         */
-        val Factory: ViewModelProvider.Factory = object : ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : androidx.lifecycle.ViewModel> create(
-                modelClass: Class<T>,
-                extras: CreationExtras
-            ): T {
-                // Get the Application object from CreationExtras
-                val application = checkNotNull(extras[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY]) {
-                    "Application not available in CreationExtras"
-                }
-                return PermissionViewModel(application) as T
-            }
-        }
+//        /**
+//         * Factory for creating PermissionViewModel instances
+//         * Required because AndroidViewModel needs Application parameter
+//         */
+//        val Factory: ViewModelProvider.Factory = object : ViewModelProvider.Factory {
+//            @Suppress("UNCHECKED_CAST")
+//            override fun <T : androidx.lifecycle.ViewModel> create(
+//                modelClass: Class<T>,
+//                extras: CreationExtras
+//            ): T {
+//                // Get the Application object from CreationExtras
+//                val application = checkNotNull(extras[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY]) {
+//                    "Application not available in CreationExtras"
+//                }
+//                return PermissionViewModel(application) as T
+//            }
+//        }
+
     }
 
     // Persistence manager to store state across app restarts
-    private val prefsManager = AppPreferencesManager(application)
+//    private val prefsManager = AppPreferencesManager(application)
 
     // Store Application context for permission checking
     private val appContext = application.applicationContext
