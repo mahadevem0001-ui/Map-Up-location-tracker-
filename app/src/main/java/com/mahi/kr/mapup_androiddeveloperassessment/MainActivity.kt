@@ -1,5 +1,7 @@
 package com.mahi.kr.mapup_androiddeveloperassessment
 
+import android.Manifest
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -8,11 +10,13 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mahi.kr.mapup_androiddeveloperassessment.core.presentation.components.AppScaffold
 import com.mahi.kr.mapup_androiddeveloperassessment.core.presentation.viewmodel.ThemeViewModel
+import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.data.LocationService
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.presentation.screen.LocationTrackingScreen
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.permission.presentation.screen.PermissionScreen
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.permission.presentation.viewmodel.PermissionViewModel
@@ -46,6 +50,23 @@ class MainActivity : ComponentActivity() {
 
             MapUpAndroidDeveloperAssessmentTheme(darkTheme = darkTheme) {
                 AppScaffold(modifier = Modifier.fillMaxSize()) { paddingValues, snackbarHostState ->
+
+                    // Monitor permission state and stop service if location permissions are removed
+                    LaunchedEffect(permissionState.deniedPermissions) {
+                        val locationPermissionsDenied = permissionState.deniedPermissions.keys.any { permission ->
+                            permission == Manifest.permission.ACCESS_FINE_LOCATION ||
+                            permission == Manifest.permission.ACCESS_COARSE_LOCATION
+                        }
+
+                        // If location permissions are denied and service is running, stop it
+                        if (locationPermissionsDenied && LocationService.isRunning()) {
+                            val intent = Intent(this@MainActivity, LocationService::class.java).apply {
+                                action = LocationService.ACTION_STOP
+                            }
+                            startService(intent)
+                        }
+                    }
+
                     Column(
                         modifier = Modifier
                             .fillMaxSize()

@@ -32,24 +32,35 @@ class LocationService : Service() {
 
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
+    companion object {
+        const val ACTION_START = "start location tracking"
+        const val ACTION_STOP = "stop location tracking"
+
+        @Volatile
+        private var isServiceRunning = false
+
+        fun isRunning(): Boolean = isServiceRunning
+    }
+
     override fun onBind(intent: Intent): IBinder {
         TODO("Return the communication channel to the service.")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-
         when (intent?.action) {
-            ACTION_START -> startLocationTracking()
-            ACTION_STOP -> stopLocationTracking()
-            else -> {
-
+            ACTION_START -> {
+                if (!isServiceRunning) {
+                    startLocationTracking()
+                }
             }
+            ACTION_STOP -> stopLocationTracking()
         }
-        return super.onStartCommand(intent, flags, startId)
+        return START_STICKY // Service will be restarted if killed by system
     }
 
 
-    fun startLocationTracking() {
+    private fun startLocationTracking() {
+        isServiceRunning = true
 
         locationClient.getLocationUpdates(1_000L).catch { exception ->
             exception.printStackTrace()
@@ -80,19 +91,15 @@ class LocationService : Service() {
 
     }
 
-    fun stopLocationTracking() {
+    private fun stopLocationTracking() {
+        isServiceRunning = false
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        isServiceRunning = false
         serviceScope.cancel("Location Service is being destroyed")
-    }
-
-
-    companion object {
-        const val ACTION_START = "start location tracking"
-        const val ACTION_STOP = "stop location tracking"
     }
 }

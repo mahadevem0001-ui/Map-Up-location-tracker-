@@ -37,10 +37,34 @@ class LocationViewModel(
     private val _state = MutableStateFlow(LocationTrackingState())
     val state: StateFlow<LocationTrackingState> = _state.asStateFlow()
 
+    init {
+        // Check if service is already running when ViewModel is created
+        checkServiceState()
+
+        // If service is running, start collecting location updates
+        if (LocationService.isRunning()) {
+            startLocationUpdates()
+        }
+    }
+
+    /**
+     * Check if the service is currently running and update state accordingly
+     */
+    fun checkServiceState() {
+        val isRunning = LocationService.isRunning()
+        _state.update { it.copy(isServiceRunning = isRunning) }
+    }
+
     /**
      * Start the location tracking service
      */
     fun startLocationService() {
+        // Check if service is already running
+        if (LocationService.isRunning()) {
+            _state.update { it.copy(isServiceRunning = true, error = null) }
+            return
+        }
+
         try {
             val intent = Intent(application, LocationService::class.java).apply {
                 action = LocationService.ACTION_START
