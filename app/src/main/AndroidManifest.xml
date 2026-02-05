@@ -3,22 +3,13 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Network -->
-    <uses-permission android:name="android.permission.INTERNET" />
-
-
-    <!-- Notification -->
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-
-    <!-- Location Related -->
+    <uses-permission android:name="android.permission.INTERNET" /> <!-- Notification -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" /> <!-- Location Related -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
-
-    <!-- Foreground Service-->
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" /> <!-- Foreground Service -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
-
-    <!-- Hardware-->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" /> <!-- Hardware -->
     <uses-feature
         android:name=" android.hardware.location.gps "
         android:required="false" />
@@ -36,6 +27,13 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.MapUpAndroidDeveloperAssessment">
+        <service
+            android:name=".feature.location.data.LocationService"
+            android:foregroundServiceType="location"
+            android:enabled="true"
+            android:exported="true"
+            tools:ignore="Instantiatable"></service>
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
