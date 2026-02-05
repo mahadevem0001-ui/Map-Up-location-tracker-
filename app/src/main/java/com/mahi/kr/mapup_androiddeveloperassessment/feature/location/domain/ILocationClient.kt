@@ -7,6 +7,8 @@ interface ILocationClient {
 
     fun getLocationUpdates(interval:Long): Flow<Location>
 
+    suspend fun getLastKnownLocation(): Location?
+
     class LocationException(message:String): Exception()
 
 }

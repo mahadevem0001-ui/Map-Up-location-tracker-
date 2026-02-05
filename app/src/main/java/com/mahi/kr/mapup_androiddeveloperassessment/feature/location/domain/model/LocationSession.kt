@@ -13,8 +13,12 @@ data class LocationSession(
 ) {
     fun isActive(): Boolean = endTime == null
 
+    fun getDurationMillis(): Long {
+        return (endTime ?: System.currentTimeMillis()) - startTime
+    }
+
     fun getFormattedDuration(): String {
-        val duration = (endTime ?: System.currentTimeMillis()) - startTime
+        val duration = getDurationMillis()
         val minutes = (duration / 1000) / 60
         val seconds = (duration / 1000) % 60
         return String.format("%02d:%02d", minutes, seconds)

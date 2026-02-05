@@ -2,6 +2,7 @@ package com.mahi.kr.mapup_androiddeveloperassessment.feature.location.presentati
 
 import android.app.Application
 import android.content.Intent
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.mahi.kr.mapup_androiddeveloperassessment.core.domain.Result
@@ -52,6 +53,9 @@ class LocationViewModel(
     // Track current session ID for adding locations
     private var currentSessionId: Long? = null
 
+    // Current interval in milliseconds
+    private var currentIntervalMs = 5000L // Default 5 seconds
+
     init {
         // Check if service is already running when ViewModel is created
         checkServiceState()
@@ -74,6 +78,22 @@ class LocationViewModel(
     fun checkServiceState() {
         val isRunning = LocationService.isRunning()
         _state.update { it.copy(isServiceRunning = isRunning) }
+    }
+
+    /**
+     * Update the location update interval
+     * @param intervalSeconds Interval in seconds (will be clamped to valid range)
+     */
+    fun updateLocationInterval(intervalSeconds: Int) {
+        val intervalMs = (intervalSeconds * 1000L).coerceIn(MIN_INTERVAL_MS, MAX_INTERVAL_MS)
+        currentIntervalMs = intervalMs
+        _state.update { it.copy(locationIntervalSeconds = intervalSeconds.coerceIn(1, 60)) }
+
+        // If tracking is active, restart with new interval
+        if (LocationService.isRunning()) {
+            locationUpdatesJob?.cancel()
+            startLocationUpdates()
+        }
     }
 
     /**
@@ -132,6 +152,8 @@ class LocationViewModel(
             try {
                 val intent = Intent(application, LocationService::class.java).apply {
                     action = LocationService.ACTION_START
+                    // Pass the configured interval to the service
+                    putExtra(LocationService.EXTRA_LOCATION_INTERVAL, currentIntervalMs)
                 }
                 application.startForegroundService(intent)
 
@@ -155,6 +177,9 @@ class LocationViewModel(
                                 error = null
                             )
                         }
+
+                        // Try to get last known location first
+                        getLastKnownLocationAndSave(sessionId)
 
                         // Start collecting location updates in the ViewModel
                         startLocationUpdates()
@@ -219,7 +244,7 @@ class LocationViewModel(
         // Cancel existing job if any
         locationUpdatesJob?.cancel()
 
-        locationUpdatesJob = locationClient.getLocationUpdates(5_000L) // Update every 5 seconds
+        locationUpdatesJob = locationClient.getLocationUpdates(currentIntervalMs) // Update with current interval
             .catch { exception ->
                 _state.update {
                     it.copy(
@@ -267,6 +292,47 @@ class LocationViewModel(
     }
 
     /**
+     * Get last known location and save it to the session
+     */
+    private fun getLastKnownLocationAndSave(sessionId: Long) {
+        viewModelScope.launch {
+            try {
+                locationClient.getLastKnownLocation()?.let { location ->
+                    val locationData = LocationData(
+                        latitude = location.latitude,
+                        longitude = location.longitude,
+                        timestamp = System.currentTimeMillis(),
+                        accuracy = location.accuracy,
+                        altitude = location.altitude,
+                        speed = location.speed,
+                        bearing = location.bearing
+                    )
+
+                    // Save to database
+                    repository.addLocationToSession(sessionId, locationData)
+                        .onSuccess {
+                            // Update UI state
+                            _state.update { currentState ->
+                                val updatedSession = currentState.currentSession?.copy(
+                                    locations = listOf(locationData)
+                                )
+
+                                currentState.copy(
+                                    currentLocation = locationData,
+                                    currentSession = updatedSession,
+                                    error = null
+                                )
+                            }
+                        }
+                }
+            } catch (e: Exception) {
+                // Last known location is optional, don't show error
+                Log.w(TAG, "Could not get last known location", e)
+            }
+        }
+    }
+
+    /**
      * Clear the error message
      */
     fun clearError() {
@@ -303,5 +369,9 @@ data class LocationTrackingState(
     val currentLocation: LocationData? = null,
     val currentSession: LocationSession? = null,
     val sessions: List<LocationSession> = emptyList(),
+    val locationIntervalSeconds: Int = 5, // Default 5 seconds
     val error: String? = null
 )
+
+private const val MIN_INTERVAL_MS = 1000L // 1 second
+private const val MAX_INTERVAL_MS = 60_000L // 60 seconds

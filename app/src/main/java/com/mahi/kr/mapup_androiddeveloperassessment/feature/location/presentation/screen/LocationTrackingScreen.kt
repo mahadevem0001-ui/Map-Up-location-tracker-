@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
@@ -29,6 +30,7 @@ import org.koin.compose.viewmodel.koinViewModel
  * - Current location display
  * - Location history in a lazy list
  * - Error handling with Snackbar
+ * - Auto-scroll to show active session
  */
 @Composable
 fun LocationTrackingScreen(
@@ -36,6 +38,7 @@ fun LocationTrackingScreen(
     snackbarHostState: SnackbarHostState
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val listState = rememberLazyListState()
 
     // Show error in Snackbar
     LaunchedEffect(state.error) {
@@ -45,6 +48,14 @@ fun LocationTrackingScreen(
                 duration = SnackbarDuration.Short
             )
             viewModel.clearError()
+        }
+    }
+
+    // Auto-scroll to top when active session becomes available
+    LaunchedEffect(state.currentSession?.sessionId) {
+        if (state.currentSession != null) {
+            // Scroll to top to show the active session
+            listState.animateScrollToItem(0)
         }
     }
 
@@ -115,6 +126,73 @@ fun LocationTrackingScreen(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                }
+            }
+        }
+
+        // Interval Configuration Card (only show when not tracking)
+        if (!state.isServiceRunning) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "Update Interval",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
+
+                    // Current interval display
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Current:",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "${state.locationIntervalSeconds} seconds",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
+                    // Interval selection chips
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Quick:",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        listOf(1, 5, 10, 30, 60).forEach { seconds ->
+                            FilterChip(
+                                selected = state.locationIntervalSeconds == seconds,
+                                onClick = { viewModel.updateLocationInterval(seconds) },
+                                label = {
+                                    Text(
+                                        text = if (seconds < 60) "${seconds}s" else "1m",
+                                        style = MaterialTheme.typography.labelMedium
+                                    )
+                                }
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -203,6 +281,7 @@ fun LocationTrackingScreen(
             }
         } else {
             LazyColumn(
+                state = listState,
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
@@ -241,7 +320,8 @@ private fun SessionCard(
     session: LocationSession,
     isActive: Boolean
 ) {
-    var expanded by remember { mutableStateOf(isActive) }
+    // Active sessions are always expanded, completed sessions can be toggled
+    var expanded by remember(isActive) { mutableStateOf(isActive) }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -316,12 +396,26 @@ private fun SessionCard(
             if (session.locations.isNotEmpty()) {
                 HorizontalDivider()
 
-                // Toggle expand/collapse
+                // Toggle expand/collapse (works for both active and completed sessions)
                 TextButton(
                     onClick = { expanded = !expanded },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(if (expanded) "Hide Locations ▲" else "Show Locations ▼")
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (isActive) {
+                            Text(
+                                text = "🔴",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                        Text(
+                            text = if (expanded) "Hide Locations ▲" else "Show Locations ▼",
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
 
                 // Location list (expandable)

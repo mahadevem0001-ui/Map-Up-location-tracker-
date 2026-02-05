@@ -15,6 +15,9 @@ import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.domain.ILoc
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 class FusedLocationClientImpl(
     private val context: Context,
@@ -62,6 +65,33 @@ class FusedLocationClientImpl(
             awaitClose {
                 client.removeLocationUpdates(locationCallback)
             }
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    override suspend fun getLastKnownLocation(): Location? {
+        return try {
+            if (!context.hasPermission(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+            ) {
+                Log.w(TAG, "getLastKnownLocation: Location permissions not granted")
+                return null
+            }
+
+            suspendCancellableCoroutine { continuation ->
+                client.lastLocation
+                    .addOnSuccessListener { location ->
+                        continuation.resume(location)
+                    }
+                    .addOnFailureListener { exception ->
+                        continuation.resumeWithException(exception)
+                    }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "getLastKnownLocation: Error getting last known location", e)
+            null
         }
     }
 }

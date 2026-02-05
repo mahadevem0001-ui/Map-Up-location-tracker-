@@ -48,8 +48,19 @@ class MainActivity : ComponentActivity() {
             val permissionViewModel: PermissionViewModel = koinViewModel()
             val permissionState by permissionViewModel.state.collectAsStateWithLifecycle()
 
+            // Get location state for drawer summary
+            val locationViewModel: com.mahi.kr.mapup_androiddeveloperassessment.feature.location.presentation.viewmodel.LocationViewModel =
+                koinViewModel()
+            val locationState by locationViewModel.state.collectAsStateWithLifecycle()
+
             MapUpAndroidDeveloperAssessmentTheme(darkTheme = darkTheme) {
-                AppScaffold(modifier = Modifier.fillMaxSize()) { paddingValues, snackbarHostState ->
+                com.mahi.kr.mapup_androiddeveloperassessment.core.presentation.components.AppScaffoldWithDrawer(
+                    modifier = Modifier.fillMaxSize(),
+                    title = "Location Tracking",
+                    currentSession = locationState.currentSession,
+                    sessions = locationState.sessions,
+                    themeViewModel = themeViewModel
+                ) { paddingValues, snackbarHostState ->
 
                     // Monitor permission state and stop service if location permissions are removed
                     LaunchedEffect(permissionState.deniedPermissions) {
