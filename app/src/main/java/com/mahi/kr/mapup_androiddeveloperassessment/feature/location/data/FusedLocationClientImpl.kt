@@ -6,6 +6,7 @@ import android.content.Context
 import android.location.Location
 import android.location.LocationManager
 import android.os.Looper
+import android.util.Log
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.Priority
@@ -19,6 +20,8 @@ class FusedLocationClientImpl(
     private val context: Context,
     private val client: FusedLocationProviderClient
 ) : ILocationClient {
+
+    private  val TAG = "FusedLocationClientImpl"
 
     @SuppressLint("MissingPermission")
     override fun getLocationUpdates(interval: Long): Flow<Location> {
@@ -48,6 +51,7 @@ class FusedLocationClientImpl(
                 override fun onLocationResult(result: com.google.android.gms.location.LocationResult) {
                     super.onLocationResult(result)
                     result.locations.lastOrNull()?.let { location ->
+                        Log.d(TAG, "onLocationResult: location $location")
                         trySend(location)
                     }
                 }

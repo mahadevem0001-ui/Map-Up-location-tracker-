@@ -17,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.domain.model.LocationData
+import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.domain.model.LocationSession
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.presentation.viewmodel.LocationViewModel
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -162,24 +163,24 @@ fun LocationTrackingScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Location History (${state.locationHistory.size})",
+                text = "Tracking Sessions (${state.sessions.size})",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
 
-            if (state.locationHistory.isNotEmpty()) {
-                IconButton(onClick = { viewModel.clearHistory() }) {
+            if (state.sessions.isNotEmpty()) {
+                IconButton(onClick = { viewModel.clearAllSessions() }) {
                     Icon(
                         imageVector = Icons.Default.Delete,
-                        contentDescription = "Clear History",
+                        contentDescription = "Clear All Sessions",
                         tint = MaterialTheme.colorScheme.error
                     )
                 }
             }
         }
 
-        // Location History List
-        if (state.locationHistory.isEmpty()) {
+        // Sessions List
+        if (state.currentSession == null && state.sessions.isEmpty()) {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -193,7 +194,7 @@ fun LocationTrackingScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "No location history yet.\nStart tracking to see location updates.",
+                        text = "No tracking sessions yet.\nStart tracking to create a new session.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -205,13 +206,27 @@ fun LocationTrackingScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                // Current active session
+                state.currentSession?.let { session ->
+                    item(key = "current_session") {
+                        SessionCard(
+                            session = session,
+                            isActive = true
+                        )
+                    }
+                }
+
+                // Previous sessions
                 items(
-                    items = state.locationHistory,
-                    key = { it.timestamp }
-                ) { location ->
-                    LocationHistoryItem(location = location)
+                    items = state.sessions,
+                    key = { it.sessionId }
+                ) { session ->
+                    SessionCard(
+                        session = session,
+                        isActive = false
+                    )
                 }
             }
         }
@@ -219,66 +234,166 @@ fun LocationTrackingScreen(
 }
 
 /**
- * Composable for displaying a single location history item
+ * Composable for displaying a tracking session with its locations
  */
 @Composable
-private fun LocationHistoryItem(location: LocationData) {
+private fun SessionCard(
+    session: LocationSession,
+    isActive: Boolean
+) {
+    var expanded by remember { mutableStateOf(isActive) }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = if (isActive) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                MaterialTheme.colorScheme.surface
+            }
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Location Icon with colored background
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        shape = RoundedCornerShape(8.dp)
-                    ),
-                contentAlignment = Alignment.Center
+            // Session Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Default.LocationOn,
-                    contentDescription = "Location",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-
-            // Location Details
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(
-                    text = location.toDisplayString(),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium
-                )
-                Text(
-                    text = location.getFormattedTime(),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                // Additional info if available
-                location.accuracy?.let { accuracy ->
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = if (isActive) "🔴 Active Session" else "📍 Session",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isActive) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            }
+                        )
+                    }
+                    // Start time
                     Text(
-                        text = "Accuracy: ${"%.1f".format(accuracy)}m",
-                        style = MaterialTheme.typography.labelSmall,
+                        text = "Started: ${session.getFormattedStartTime()}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    // End time (only for completed sessions)
+                    if (!isActive && session.endTime != null) {
+                        Text(
+                            text = "Ended: ${session.getFormattedEndTime()}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = session.getFormattedDuration(),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "${session.getLocationCount()} locations",
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+            }
+
+            if (session.locations.isNotEmpty()) {
+                HorizontalDivider()
+
+                // Toggle expand/collapse
+                TextButton(
+                    onClick = { expanded = !expanded },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(if (expanded) "Hide Locations ▲" else "Show Locations ▼")
+                }
+
+                // Location list (expandable)
+                if (expanded) {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        session.locations.forEach { location ->
+                            LocationItemInSession(location = location)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Composable for displaying a location within a session
+ */
+@Composable
+private fun LocationItemInSession(location: LocationData) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                shape = RoundedCornerShape(8.dp)
+            )
+            .padding(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // Location Icon
+        Box(
+            modifier = Modifier
+                .size(32.dp)
+                .background(
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    shape = RoundedCornerShape(6.dp)
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.LocationOn,
+                contentDescription = "Location",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+
+        // Location Details
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = location.toDisplayString(),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = location.getFormattedTime(),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            location.accuracy?.let { accuracy ->
+                Text(
+                    text = "Accuracy: ${"%.1f".format(accuracy)}m",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }

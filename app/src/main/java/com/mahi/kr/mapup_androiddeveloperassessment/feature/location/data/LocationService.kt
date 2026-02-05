@@ -3,6 +3,7 @@ package com.mahi.kr.mapup_androiddeveloperassessment.feature.location.data
 import android.app.Service
 import android.content.Intent
 import android.os.IBinder
+import android.util.Log
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.domain.ILocationClient
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.notification.data.repository.AppNotificationManager
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.notification.domain.model.NotificationConfig
@@ -33,6 +34,7 @@ class LocationService : Service() {
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     companion object {
+        private const val TAG = "LocationService"
         const val ACTION_START = "start location tracking"
         const val ACTION_STOP = "stop location tracking"
 
@@ -47,6 +49,8 @@ class LocationService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val action = intent?.action
+        Log.d(TAG, "onStartCommand: isServiceRunning $isServiceRunning action $action")
         when (intent?.action) {
             ACTION_START -> {
                 if (!isServiceRunning) {
@@ -65,6 +69,7 @@ class LocationService : Service() {
         locationClient.getLocationUpdates(1_000L).catch { exception ->
             exception.printStackTrace()
         }.onEach { location ->
+            Log.d(TAG, "startLocationTracking: location $location ")
             // Handle location update
             sendNotificationUseCase(
                 NotificationConfig(
@@ -95,11 +100,13 @@ class LocationService : Service() {
         isServiceRunning = false
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
+        Log.d(TAG, "stopLocationTracking: isServiceRunning $isServiceRunning ")
     }
 
     override fun onDestroy() {
         super.onDestroy()
         isServiceRunning = false
         serviceScope.cancel("Location Service is being destroyed")
+        Log.d(TAG, "onDestroy: isServiceRunning $isServiceRunning ")
     }
 }
