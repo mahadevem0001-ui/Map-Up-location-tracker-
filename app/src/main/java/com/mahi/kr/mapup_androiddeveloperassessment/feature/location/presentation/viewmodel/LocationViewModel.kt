@@ -4,10 +4,15 @@ import android.app.Application
 import android.content.Intent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.mahi.kr.mapup_androiddeveloperassessment.core.domain.Result
+import com.mahi.kr.mapup_androiddeveloperassessment.core.domain.onError
+import com.mahi.kr.mapup_androiddeveloperassessment.core.domain.onSuccess
+import com.mahi.kr.mapup_androiddeveloperassessment.core.domain.toUiText
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.data.LocationService
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.domain.ILocationClient
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.domain.model.LocationData
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.domain.model.LocationSession
+import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.domain.repository.LocationSessionRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,6 +21,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 /**
  * ViewModel for managing location tracking
@@ -23,17 +29,18 @@ import kotlinx.coroutines.flow.update
  * Responsibilities:
  * - Start/Stop LocationService
  * - Collect location updates from LocationClient
- * - Maintain list of location history for display
+ * - Persist sessions and locations to Room database
+ * - Load sessions from database on initialization
  * - Manage service state
  */
 class LocationViewModel(
     private val application: Application,
-    private val locationClient: ILocationClient
+    private val locationClient: ILocationClient,
+    private val repository: LocationSessionRepository
 ) : AndroidViewModel(application) {
 
     companion object {
         const val TAG = "LocationViewModel"
-        const val MAX_SESSIONS = 50 // Keep last 50 sessions
     }
 
     private val _state = MutableStateFlow(LocationTrackingState())
@@ -42,9 +49,18 @@ class LocationViewModel(
     // Job to control location updates collection
     private var locationUpdatesJob: Job? = null
 
+    // Track current session ID for adding locations
+    private var currentSessionId: Long? = null
+
     init {
         // Check if service is already running when ViewModel is created
         checkServiceState()
+
+        // Load sessions from database
+        loadSessionsFromDatabase()
+
+        // Check for active session
+        checkForActiveSession()
 
         // If service is running, start collecting location updates
         if (LocationService.isRunning()) {
@@ -61,6 +77,48 @@ class LocationViewModel(
     }
 
     /**
+     * Load sessions from database reactively
+     */
+    private fun loadSessionsFromDatabase() {
+        viewModelScope.launch {
+            repository.getAllSessions()
+                .collect { result ->
+                    when (result) {
+                        is Result.Success -> {
+                            _state.update { it.copy(sessions = result.data) }
+                        }
+                        is Result.Error -> {
+                            _state.update { it.copy(error = result.error.toUiText().toString()) }
+                        }
+                    }
+                }
+        }
+    }
+
+    /**
+     * Check for active session in database
+     */
+    private fun checkForActiveSession() {
+        viewModelScope.launch {
+            repository.getActiveSession()
+                .onSuccess { activeSession ->
+                    if (activeSession != null) {
+                        currentSessionId = activeSession.sessionId
+                        _state.update {
+                            it.copy(
+                                currentSession = activeSession,
+                                currentLocation = activeSession.locations.lastOrNull()
+                            )
+                        }
+                    }
+                }
+                .onError { error ->
+                    _state.update { it.copy(error = error.toUiText().toString()) }
+                }
+        }
+    }
+
+    /**
      * Start the location tracking service
      */
     fun startLocationService() {
@@ -70,31 +128,43 @@ class LocationViewModel(
             return
         }
 
-        try {
-            val intent = Intent(application, LocationService::class.java).apply {
-                action = LocationService.ACTION_START
-            }
-            application.startForegroundService(intent)
+        viewModelScope.launch {
+            try {
+                val intent = Intent(application, LocationService::class.java).apply {
+                    action = LocationService.ACTION_START
+                }
+                application.startForegroundService(intent)
 
-            // Create new session
-            val newSession = LocationSession(
-                startTime = System.currentTimeMillis(),
-                endTime = null,
-                locations = emptyList()
-            )
-
-            _state.update {
-                it.copy(
-                    isServiceRunning = true,
-                    currentSession = newSession,
-                    error = null
+                // Create new session
+                val sessionId = System.currentTimeMillis()
+                val newSession = LocationSession(
+                    sessionId = sessionId,
+                    startTime = sessionId,
+                    endTime = null,
+                    locations = emptyList()
                 )
-            }
 
-            // Start collecting location updates in the ViewModel
-            startLocationUpdates()
-        } catch (e: Exception) {
-            _state.update { it.copy(error = "Failed to start service: ${e.message}") }
+                // Save session to database
+                repository.createSession(newSession)
+                    .onSuccess {
+                        currentSessionId = sessionId
+                        _state.update {
+                            it.copy(
+                                isServiceRunning = true,
+                                currentSession = newSession,
+                                error = null
+                            )
+                        }
+
+                        // Start collecting location updates in the ViewModel
+                        startLocationUpdates()
+                    }
+                    .onError { error ->
+                        _state.update { it.copy(error = error.toUiText().toString()) }
+                    }
+            } catch (e: Exception) {
+                _state.update { it.copy(error = "Failed to start service: ${e.message}") }
+            }
         }
     }
 
@@ -102,38 +172,43 @@ class LocationViewModel(
      * Stop the location tracking service
      */
     fun stopLocationService() {
-        try {
-            val intent = Intent(application, LocationService::class.java).apply {
-                action = LocationService.ACTION_STOP
-            }
-            application.startService(intent)
-
-            // Cancel location updates collection
-            locationUpdatesJob?.cancel()
-            locationUpdatesJob = null
-
-            // End current session and add to history
-            _state.update { currentState ->
-                val endedSession = currentState.currentSession?.copy(
-                    endTime = System.currentTimeMillis()
-                )
-
-                val updatedSessions = if (endedSession != null && endedSession.locations.isNotEmpty()) {
-                    (listOf(endedSession) + currentState.sessions).take(MAX_SESSIONS)
-                } else {
-                    currentState.sessions
+        viewModelScope.launch {
+            try {
+                val intent = Intent(application, LocationService::class.java).apply {
+                    action = LocationService.ACTION_STOP
                 }
+                application.startService(intent)
 
-                currentState.copy(
-                    isServiceRunning = false,
-                    currentSession = null,
-                    currentLocation = null,
-                    sessions = updatedSessions,
-                    error = null
-                )
+                // Cancel location updates collection
+                locationUpdatesJob?.cancel()
+                locationUpdatesJob = null
+
+                // End current session and update in database
+                _state.value.currentSession?.let { session ->
+                    val endedSession = session.copy(
+                        endTime = System.currentTimeMillis()
+                    )
+
+                    // Update session in database
+                    repository.updateSession(endedSession)
+                        .onSuccess {
+                            currentSessionId = null
+                            _state.update {
+                                it.copy(
+                                    isServiceRunning = false,
+                                    currentSession = null,
+                                    currentLocation = null,
+                                    error = null
+                                )
+                            }
+                        }
+                        .onError { error ->
+                            _state.update { it.copy(error = error.toUiText().toString()) }
+                        }
+                }
+            } catch (e: Exception) {
+                _state.update { it.copy(error = "Failed to stop service: ${e.message}") }
             }
-        } catch (e: Exception) {
-            _state.update { it.copy(error = "Failed to stop service: ${e.message}") }
         }
     }
 
@@ -160,20 +235,32 @@ class LocationViewModel(
                     timestamp = System.currentTimeMillis(),
                     accuracy = location.accuracy,
                     altitude = location.altitude,
-                    speed = location.speed
+                    speed = location.speed,
+                    bearing = location.bearing
                 )
 
-                _state.update { currentState ->
-                    // Add location to current session
-                    val updatedSession = currentState.currentSession?.copy(
-                        locations = currentState.currentSession.locations + locationData
-                    )
+                // Save location to database
+                currentSessionId?.let { sessionId ->
+                    viewModelScope.launch {
+                        repository.addLocationToSession(sessionId, locationData)
+                            .onSuccess {
+                                // Update UI state
+                                _state.update { currentState ->
+                                    val updatedSession = currentState.currentSession?.copy(
+                                        locations = currentState.currentSession.locations + locationData
+                                    )
 
-                    currentState.copy(
-                        currentLocation = locationData,
-                        currentSession = updatedSession,
-                        error = null
-                    )
+                                    currentState.copy(
+                                        currentLocation = locationData,
+                                        currentSession = updatedSession,
+                                        error = null
+                                    )
+                                }
+                            }
+                            .onError { error ->
+                                _state.update { it.copy(error = error.toUiText().toString()) }
+                            }
+                    }
                 }
             }
             .launchIn(viewModelScope)
@@ -190,7 +277,15 @@ class LocationViewModel(
      * Clear all session history
      */
     fun clearAllSessions() {
-        _state.update { it.copy(sessions = emptyList()) }
+        viewModelScope.launch {
+            repository.deleteAllSessions()
+                .onSuccess {
+                    _state.update { it.copy(sessions = emptyList()) }
+                }
+                .onError { error ->
+                    _state.update { it.copy(error = error.toUiText().toString()) }
+                }
+        }
     }
 
     override fun onCleared() {

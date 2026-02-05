@@ -388,12 +388,34 @@ private fun LocationItemInSession(location: LocationData) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            location.accuracy?.let { accuracy ->
-                Text(
-                    text = "Accuracy: ${"%.1f".format(accuracy)}m",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            // Additional metadata in a row
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.padding(top = 2.dp)
+            ) {
+                location.accuracy?.let { accuracy ->
+                    Text(
+                        text = "📍 ${"%.1f".format(accuracy)}m",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                location.speed?.let { speed ->
+                    Text(
+                        text = "🚀 ${"%.1f".format(speed * 3.6f)} km/h", // Convert m/s to km/h
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                location.getCompassDirection()?.let { direction ->
+                    Text(
+                        text = "🧭 $direction",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }
