@@ -13,5 +13,8 @@ data class NotificationConfig(
     val notificationId: Int,
     val smallIconRes: Int = R.drawable.ic_menu_mylocation,
     val priority: Int = NotificationCompat.PRIORITY_DEFAULT,
-    val autoCancel: Boolean = true
+    val autoCancel: Boolean = true,
+    val actionTitle: String? = null,
+    val actionIconRes: Int? = null,
+    val actionIntent: android.app.PendingIntent? = null
 )

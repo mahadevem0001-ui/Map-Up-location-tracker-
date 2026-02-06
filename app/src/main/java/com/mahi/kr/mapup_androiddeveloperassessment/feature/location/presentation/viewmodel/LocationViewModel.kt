@@ -98,6 +98,9 @@ class LocationViewModel(
         // Restore last configured interval if we have one persisted by the service
         restorePersistedInterval()
 
+        // Keep UI/service state in sync with persisted tracking flag (covers notification stop action)
+        observeTrackingFlag()
+
         // Establish initial permission/provider status
         refreshPrerequisites()
 
@@ -383,29 +386,17 @@ class LocationViewModel(
                     address = address // Add reverse geocoded address
                 )
 
-                // Save location to database
-                currentSessionId?.let { sessionId ->
-                    viewModelScope.launch {
-                        repository.addLocationToSession(sessionId, locationData)
-                            .onSuccess {
-                                // Update UI state
-                                _state.update { currentState ->
-                                    val updatedSession = currentState.currentSession?.copy(
-                                        locations = currentState.currentSession.locations + locationData
-                                    )
+                // Update UI only; persistence now handled inside LocationService to avoid duplicates
+                _state.update { currentState ->
+                    val updatedSession = currentState.currentSession?.copy(
+                        locations = currentState.currentSession.locations + locationData
+                    )
 
-                                    currentState.copy(
-                                        currentLocation = locationData,
-                                        currentSession = updatedSession,
-                                        error = null
-                                    )
-                                }
-                            }
-                            .onError { error ->
-                                Log.e(TAG, "addLocationToSession failed ${error.toUiText()}")
-                                emitEvent(LocationEvent.ShowMessage(error.toUiText().toString()))
-                            }
-                    }
+                    currentState.copy(
+                        currentLocation = locationData,
+                        currentSession = updatedSession,
+                        error = null
+                    )
                 }
             }
             .launchIn(viewModelScope)
@@ -419,6 +410,7 @@ class LocationViewModel(
             try {
                 Log.d(TAG, "getLastKnownLocationAndSave: sessionId=$sessionId")
                 locationClient.getLastKnownLocation()?.let { location ->
+                    val address = getAddressFromLocation(location.latitude, location.longitude)
                     val locationData = LocationData(
                         latitude = location.latitude,
                         longitude = location.longitude,
@@ -426,25 +418,22 @@ class LocationViewModel(
                         accuracy = location.accuracy,
                         altitude = location.altitude,
                         speed = location.speed,
-                        bearing = location.bearing
+                        bearing = location.bearing,
+                        address = address
                     )
 
-                    // Save to database
-                    repository.addLocationToSession(sessionId, locationData)
-                        .onSuccess {
-                            // Update UI state
-                            _state.update { currentState ->
-                                val updatedSession = currentState.currentSession?.copy(
-                                    locations = listOf(locationData)
-                                )
+                    // Update UI only; persistence handled by LocationService
+                    _state.update { currentState ->
+                        val updatedSession = currentState.currentSession?.copy(
+                            locations = listOf(locationData)
+                        )
 
-                                currentState.copy(
-                                    currentLocation = locationData,
-                                    currentSession = updatedSession,
-                                    error = null
-                                )
-                            }
-                        }
+                        currentState.copy(
+                            currentLocation = locationData,
+                            currentSession = updatedSession,
+                            error = null
+                        )
+                    }
                 }
             } catch (e: Exception) {
                 when {
@@ -459,6 +448,38 @@ class LocationViewModel(
                         handleProviderDisabled("Location provider disabled. Tracking stopped.")
                     }
                     else -> Log.w(TAG, "Could not get last known location", e)
+                }
+            }
+        }
+    }
+
+    /**
+     * Keep view state aligned with persisted tracking flag so notification Stop action
+     * (which stops the service) also clears UI/session state.
+     */
+    private fun observeTrackingFlag() {
+        viewModelScope.launch {
+            prefsManager.isTracking.collect { isTracking ->
+                if (!isTracking && (_state.value.isServiceRunning || _state.value.currentSession != null)) {
+                    Log.d(TAG, "observeTrackingFlag: tracking=false -> closing active session and clearing state")
+
+                    locationUpdatesJob?.cancel()
+                    locationUpdatesJob = null
+
+                    closeStaleActiveSession()
+                    closeActiveSessionFromRepository()
+
+                    currentSessionId = null
+                    _state.update {
+                        it.copy(
+                            isServiceRunning = false,
+                            currentSession = null,
+                            currentLocation = null,
+                            error = null
+                        )
+                    }
+                } else if (isTracking && !_state.value.isServiceRunning) {
+                    _state.update { it.copy(isServiceRunning = true) }
                 }
             }
         }

@@ -30,7 +30,8 @@ fun LocationData.toEntity(sessionId: Long): LocationEntity {
         accuracy = accuracy,
         altitude = altitude,
         speed = speed,
-        bearing = bearing
+        bearing = bearing,
+        address = address
     )
 }
 
@@ -45,7 +46,8 @@ fun LocationEntity.toDomain(): LocationData {
         accuracy = accuracy,
         altitude = altitude,
         speed = speed,
-        bearing = bearing
+        bearing = bearing,
+        address = address
     )
 }
 

@@ -68,6 +68,15 @@ class AppNotificationManager(private val context: Context) : INotificationManage
             .setAutoCancel(config.autoCancel)
             .setOngoing(true)
 
+        // Optional action (e.g., stop service)
+        config.actionIntent?.let { intent ->
+            builder.addAction(
+                config.actionIconRes ?: android.R.drawable.ic_media_pause,
+                config.actionTitle ?: "Stop",
+                intent
+            )
+        }
+
         NotificationManagerCompat.from(context).notify(config.notificationId, builder.build())
     }
 
@@ -96,6 +105,16 @@ class AppNotificationManager(private val context: Context) : INotificationManage
             .setAutoCancel(config.autoCancel)
             .setOngoing(true)
             .setContentIntent(pendingIntent)
+            .apply {
+                // Optional action (e.g., stop service)
+                config.actionIntent?.let { intent ->
+                    addAction(
+                        config.actionIconRes ?: android.R.drawable.ic_media_pause,
+                        config.actionTitle ?: "Stop",
+                        intent
+                    )
+                }
+            }
             .build()
     }
 }

@@ -16,7 +16,7 @@ import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.data.local.
         LocationSessionEntity::class,
         LocationEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = true
 )
 abstract class LocationDatabase : RoomDatabase() {
@@ -26,5 +26,9 @@ abstract class LocationDatabase : RoomDatabase() {
 
     companion object {
         const val DATABASE_NAME = "location_tracking.db"
+
+        val MIGRATION_1_2 = androidx.room.migration.Migration(1, 2) { db ->
+            db.execSQL("ALTER TABLE locations ADD COLUMN address TEXT")
+        }
     }
 }

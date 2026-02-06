@@ -26,7 +26,9 @@ val locationModule = module {
             androidContext(),
             LocationDatabase::class.java,
             LocationDatabase.DATABASE_NAME
-        ).build()
+        )
+            .addMigrations(LocationDatabase.MIGRATION_1_2)
+            .build()
     }
 
     // DAOs

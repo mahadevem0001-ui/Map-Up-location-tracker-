@@ -1,8 +1,10 @@
 package com.mahi.kr.mapup_androiddeveloperassessment.feature.location.data
 
+import android.Manifest
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.util.Log
 import com.mahi.kr.mapup_androiddeveloperassessment.core.data.local.AppPreferencesManager
 import kotlinx.coroutines.runBlocking
@@ -37,10 +39,23 @@ class BootRestartReceiver : BroadcastReceiver() {
             return
         }
 
+        // Android 10+ requires background location to start a location FGS from a background receiver
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val hasBackgroundPermission =
+                context.checkSelfPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION) ==
+                    android.content.pm.PackageManager.PERMISSION_GRANTED
+
+            if (!hasBackgroundPermission) {
+                Log.w(TAG, "BootRestartReceiver: missing ACCESS_BACKGROUND_LOCATION; not restarting service")
+                return
+            }
+        }
+
         Log.d(TAG, "BootRestartReceiver: restarting tracking with intervalMs=$intervalMs")
         val serviceIntent = Intent(context, LocationService::class.java).apply {
             action = LocationService.ACTION_START
             putExtra(LocationService.EXTRA_LOCATION_INTERVAL, intervalMs)
+            putExtra(LocationService.EXTRA_FROM_BOOT, true)
         }
         runCatching {
             context.startForegroundService(serviceIntent)

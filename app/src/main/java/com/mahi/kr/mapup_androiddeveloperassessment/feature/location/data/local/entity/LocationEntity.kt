@@ -31,5 +31,6 @@ data class LocationEntity(
     val accuracy: Float?,
     val altitude: Double?,
     val speed: Float?,
-    val bearing: Float? // Direction of travel in degrees (0-360), null if stationary
+    val bearing: Float?, // Direction of travel in degrees (0-360), null if stationary
+    val address: String? = null
 )

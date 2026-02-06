@@ -21,6 +21,7 @@ import com.mahi.kr.mapup_androiddeveloperassessment.core.presentation.components
 import com.mahi.kr.mapup_androiddeveloperassessment.core.presentation.viewmodel.ThemeViewModel
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.data.LocationService
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.presentation.screen.LocationTrackingScreen
+import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.presentation.viewmodel.LocationViewModel
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.permission.presentation.screen.PermissionScreen
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.permission.presentation.viewmodel.PermissionViewModel
 import com.mahi.kr.mapup_androiddeveloperassessment.ui.theme.MapUpAndroidDeveloperAssessmentTheme
@@ -60,14 +61,15 @@ class MainActivity : ComponentActivity() {
             val permissionState by permissionViewModel.state.collectAsStateWithLifecycle()
 
             // Get location state for drawer summary
-            val locationViewModel: com.mahi.kr.mapup_androiddeveloperassessment.feature.location.presentation.viewmodel.LocationViewModel =
-                koinViewModel()
+            val locationViewModel: LocationViewModel = koinViewModel()
             val locationState by locationViewModel.state.collectAsStateWithLifecycle()
 
             MapUpAndroidDeveloperAssessmentTheme(darkTheme = darkTheme) {
                 AppScaffoldWithDrawer(
                     modifier = Modifier.fillMaxSize(),
                     title = "Location Tracking",
+                    showDrawer = permissionState.deniedPermissions.isEmpty() &&
+                        permissionState.hasRequestedPermissionsBefore,
                     currentSession = locationState.currentSession,
                     sessions = locationState.sessions,
                     onExportCsv = { locationViewModel.exportSessionsToCsv() },

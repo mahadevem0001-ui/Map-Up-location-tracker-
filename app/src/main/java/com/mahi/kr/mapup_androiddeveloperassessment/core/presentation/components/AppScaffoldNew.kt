@@ -1,5 +1,6 @@
 package com.mahi.kr.mapup_androiddeveloperassessment.core.presentation.components
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -31,6 +32,7 @@ import kotlinx.coroutines.launch
 fun AppScaffoldWithDrawer(
     modifier: Modifier = Modifier,
     title: String = "Location Tracking",
+    showDrawer: Boolean = true,
     currentSession: LocationSession? = null,
     sessions: List<LocationSession> = emptyList(),
     onExportCsv: () -> Unit = {},
@@ -50,22 +52,7 @@ fun AppScaffoldWithDrawer(
     // Snackbar state
     val snackbarHostState = remember { SnackbarHostState() }
 
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        drawerContent = {
-            ModalDrawerSheet {
-                DrawerContent(
-                    currentSession = currentSession,
-                    sessions = sessions,
-                    onExportCsv = onExportCsv,
-                    onExportGpx = onExportGpx,
-                    onCloseDrawer = {
-                        scope.launch { drawerState.close() }
-                    }
-                )
-            }
-        }
-    ) {
+    val scaffoldContent: @Composable () -> Unit = {
         Scaffold(
             modifier = modifier,
             topBar = {
@@ -78,13 +65,15 @@ fun AppScaffoldWithDrawer(
                         )
                     },
                     navigationIcon = {
-                        IconButton(onClick = {
-                            scope.launch { drawerState.open() }
-                        }) {
-                            Icon(
-                                imageVector = Icons.Default.Menu,
-                                contentDescription = "Dashboard"
-                            )
+                        if (showDrawer) {
+                            IconButton(onClick = {
+                                scope.launch { drawerState.open() }
+                            }) {
+                                Icon(
+                                    imageVector = Icons.Default.Menu,
+                                    contentDescription = "Dashboard"
+                                )
+                            }
                         }
                     },
                     actions = {
@@ -114,6 +103,29 @@ fun AppScaffoldWithDrawer(
         ) { paddingValues ->
             content(paddingValues, snackbarHostState)
         }
+    }
+
+    if (showDrawer) {
+        ModalNavigationDrawer(
+            drawerState = drawerState,
+            drawerContent = {
+                ModalDrawerSheet {
+                    DrawerContent(
+                        currentSession = currentSession,
+                        sessions = sessions,
+                        onExportCsv = onExportCsv,
+                        onExportGpx = onExportGpx,
+                        onCloseDrawer = {
+                            scope.launch { drawerState.close() }
+                        }
+                    )
+                }
+            }
+        ) {
+            scaffoldContent()
+        }
+    } else {
+        scaffoldContent()
     }
 }
 
