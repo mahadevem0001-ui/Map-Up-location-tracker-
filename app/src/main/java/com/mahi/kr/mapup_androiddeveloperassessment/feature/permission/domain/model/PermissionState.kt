@@ -13,5 +13,6 @@ import androidx.compose.runtime.Immutable
 data class PermissionState(
     val deniedPermissions: Map<String, DeniedPermissionInfo> = emptyMap(),
     val showProminentDialog: Boolean = false,
-    val hasRequestedPermissionsBefore: Boolean = false
+    val hasRequestedPermissionsBefore: Boolean = false,
+    val isLoaded: Boolean = false
 )

@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.mahi.kr.mapup_androiddeveloperassessment.core.data.local.AppPreferencesManager
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -21,13 +22,22 @@ class ThemeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val prefsManager = AppPreferencesManager(application)
 
+    val themeState: StateFlow<ThemeUiState> = prefsManager.isDarkMode
+        .map { ThemeUiState(isDarkMode = it, isLoaded = true) }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = ThemeUiState()
+        )
+
     /**
      * StateFlow that emits the current dark mode state
      * - true: Dark mode enabled
      * - false: Light mode enabled
      * - null: Follow system theme
      */
-    val isDarkMode: StateFlow<Boolean?> = prefsManager.isDarkMode
+    val isDarkMode: StateFlow<Boolean?> = themeState
+        .map { it.isDarkMode }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),

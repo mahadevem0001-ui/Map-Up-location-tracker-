@@ -1,3 +1,11 @@
 <resources>
     <string name="app_name">MapUp - Android Developer Assessment</string>
+
+    <!-- Error Messages -->
+    <string name="error_disk_full">Storage is full. Please free up some space.</string>
+    <string name="error_unknown">An unknown error occurred. Please try again.</string>
+    <string name="error_request_timeout">The request timed out. Please check your connection and try again.</string>
+    <string name="error_too_many_requests">Too many requests. Please wait a moment and try again.</string>
+    <string name="error_no_internet">No internet connection. Please check your network.</string>
+    <string name="error_serialization">Failed to process data. Please try again.</string>
 </resources>
