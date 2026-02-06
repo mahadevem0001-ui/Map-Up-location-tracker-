@@ -32,7 +32,7 @@ import kotlinx.coroutines.launch
 class PermissionViewModel(application: Application, val prefsManager : AppPreferencesManager) : AndroidViewModel(application) {
 
     companion object {
-        const val TAG = "PermissionViewModel"
+        const val TAG = "com.mahi.kr.PermissionViewModel"
 
         /**
          * Set of required permissions for the app
@@ -46,23 +46,6 @@ class PermissionViewModel(application: Application, val prefsManager : AppPrefer
             }
         }
 
-//        /**
-//         * Factory for creating PermissionViewModel instances
-//         * Required because AndroidViewModel needs Application parameter
-//         */
-//        val Factory: ViewModelProvider.Factory = object : ViewModelProvider.Factory {
-//            @Suppress("UNCHECKED_CAST")
-//            override fun <T : androidx.lifecycle.ViewModel> create(
-//                modelClass: Class<T>,
-//                extras: CreationExtras
-//            ): T {
-//                // Get the Application object from CreationExtras
-//                val application = checkNotNull(extras[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY]) {
-//                    "Application not available in CreationExtras"
-//                }
-//                return PermissionViewModel(application) as T
-//            }
-//        }
 
     }
 
@@ -98,6 +81,8 @@ class PermissionViewModel(application: Application, val prefsManager : AppPrefer
                     Log.d(TAG, "Permissions were requested before - checking current states")
                     checkAndRestorePermissionStates()
                 }
+
+                _state.update { it.copy(isLoaded = true) }
             }
         }
     }

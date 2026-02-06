@@ -1,4 +1,4 @@
-package com.mahi.kr.mapup_androiddeveloperassessment.feature.location.data
+package com.mahi.kr.mapup_androiddeveloperassessment.feature.location.data.repository
 
 import android.Manifest
 import android.annotation.SuppressLint
@@ -8,10 +8,12 @@ import android.location.LocationManager
 import android.os.Looper
 import android.util.Log
 import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.Priority
 import com.mahi.kr.mapup_androiddeveloperassessment.core.util.extensions.hasPermission
-import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.domain.ILocationClient
+import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.domain.repository.ILocationClient
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -24,7 +26,7 @@ class FusedLocationClientImpl(
     private val client: FusedLocationProviderClient
 ) : ILocationClient {
 
-    private  val TAG = "FusedLocationClientImpl"
+    private  val TAG = "com.mahi.kr.FusedLocationClientImpl"
 
     @SuppressLint("MissingPermission")
     override fun getLocationUpdates(interval: Long): Flow<Location> {
@@ -50,8 +52,8 @@ class FusedLocationClientImpl(
                 .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
                 .build()
 
-            val locationCallback = object : com.google.android.gms.location.LocationCallback() {
-                override fun onLocationResult(result: com.google.android.gms.location.LocationResult) {
+            val locationCallback = object : LocationCallback() {
+                override fun onLocationResult(result: LocationResult) {
                     super.onLocationResult(result)
                     result.locations.lastOrNull()?.let { location ->
                         Log.d(TAG, "onLocationResult: location $location")

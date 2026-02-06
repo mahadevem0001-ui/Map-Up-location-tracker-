@@ -1,4 +1,4 @@
-package com.mahi.kr.mapup_androiddeveloperassessment.feature.location.domain
+package com.mahi.kr.mapup_androiddeveloperassessment.feature.location.domain.repository
 
 import android.location.Location
 import kotlinx.coroutines.flow.Flow

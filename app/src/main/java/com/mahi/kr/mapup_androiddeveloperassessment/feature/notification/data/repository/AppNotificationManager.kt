@@ -23,7 +23,7 @@ import com.mahi.kr.mapup_androiddeveloperassessment.feature.notification.domain.
  */
 class AppNotificationManager(private val context: Context) : INotificationManager {
     companion object {
-        private val TAG = "AppNotificationManager"
+        private val TAG = "com.mahi.kr.AppNotificationManager"
         val LOCATION_CHANNEL_CONFIG = NotificationChannelConfig(
             channelId = "location_channel",
             channelName = "Location Notifications",

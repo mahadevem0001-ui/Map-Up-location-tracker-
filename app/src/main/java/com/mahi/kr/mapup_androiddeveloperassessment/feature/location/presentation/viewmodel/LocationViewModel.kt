@@ -18,8 +18,8 @@ import com.mahi.kr.mapup_androiddeveloperassessment.core.domain.onError
 import com.mahi.kr.mapup_androiddeveloperassessment.core.domain.onSuccess
 import com.mahi.kr.mapup_androiddeveloperassessment.core.domain.toUiText
 import com.mahi.kr.mapup_androiddeveloperassessment.core.util.extensions.hasPermission
-import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.data.LocationService
-import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.domain.ILocationClient
+import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.data.service.LocationService
+import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.domain.repository.ILocationClient
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.domain.model.LocationData
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.domain.model.LocationSession
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.domain.repository.LocationSessionRepository
@@ -63,7 +63,7 @@ class LocationViewModel(
 ) : AndroidViewModel(application) {
 
     companion object {
-        const val TAG = "LocationViewModel"
+        const val TAG = "com.mahi.kr.LocationViewModel"
     }
 
     private val _state = MutableStateFlow(LocationTrackingState())

@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
+//Todo: Move to Koin
 /**
  * DataStore extension for the application context
  * Single DataStore instance for all app preferences

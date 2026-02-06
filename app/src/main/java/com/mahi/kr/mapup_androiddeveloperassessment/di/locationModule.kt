@@ -3,10 +3,10 @@ package com.mahi.kr.mapup_androiddeveloperassessment.di
 import androidx.room.Room
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
-import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.data.FusedLocationClientImpl
+import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.data.repository.FusedLocationClientImpl
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.data.local.LocationDatabase
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.data.repository.LocationSessionRepositoryImpl
-import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.domain.ILocationClient
+import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.domain.repository.ILocationClient
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.domain.repository.LocationSessionRepository
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.domain.usecase.ExportSessionToCsvUseCase
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.domain.usecase.ExportSessionToGpxUseCase

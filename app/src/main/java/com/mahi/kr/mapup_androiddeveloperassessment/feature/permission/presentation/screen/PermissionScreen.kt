@@ -46,7 +46,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mahi.kr.mapup_androiddeveloperassessment.core.util.compose.ObserveAsEvents
 import com.mahi.kr.mapup_androiddeveloperassessment.core.util.extensions.openAppSettings
-import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.data.LocationService
+import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.data.service.LocationService
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.location.presentation.viewmodel.LocationViewModel
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.permission.domain.model.DeniedPermissionInfo
 import com.mahi.kr.mapup_androiddeveloperassessment.feature.permission.presentation.components.DeniedPermissionItem
@@ -107,7 +107,6 @@ fun PermissionScreen(
                     shouldShowRationale = shouldShowRationale
                 )
             )
-
         }
 
 //        if (!isGranted/* && (permission == android.Manifest.permission.ACCESS_FINE_LOCATION || permission == android.Manifest.permission.ACCESS_COARSE_LOCATION)*/) {
@@ -115,10 +114,13 @@ fun PermissionScreen(
 //            locationViewModel.handlePermissionRevokedFromUi()
 //        }
 
-
-        if(permissions.entries.any {  (_, granted) ->
-            !granted
-        } && deniedPermissionsList.isNotEmpty()){
+//
+//        Log.d(logTag, "Some permissions denied${permissions.entries.any { (_, granted) -> !granted }}, state.hasRequestedPermissionsBefore ${state.hasRequestedPermissionsBefore}")
+//
+        if (
+            permissions.entries.any { (_, granted) -> !granted }
+            && state.hasRequestedPermissionsBefore
+        ) {
             Log.d(logTag, "Some permissions denied, showing prominent dialog if needed")
             locationViewModel.handlePermissionRevokedFromUi()
         }
@@ -147,8 +149,34 @@ fun PermissionScreen(
                         )
                     )
 
-                    if (!isGranted /*&& (permission == android.Manifest.permission.ACCESS_FINE_LOCATION || permission == android.Manifest.permission.ACCESS_COARSE_LOCATION)*/) {
-                        Log.w(logTag, "Location permission missing on resume: $permission")
+//                    if (!isGranted /*&& (permission == android.Manifest.permission.ACCESS_FINE_LOCATION || permission == android.Manifest.permission.ACCESS_COARSE_LOCATION)*/) {
+//                        Log.w(logTag, "Location permission missing on resume: $permission")
+//                        locationViewModel.handlePermissionRevokedFromUi()
+//                    }
+                }
+
+//                PermissionViewModel.requiredPermissionsSet.any {  permission ->
+//                    ContextCompat.checkSelfPermission(
+//                        activity,
+//                        permission
+//                    ) != PackageManager.PERMISSION_GRANTED
+//                }.let { anyDenied ->
+//                    if (anyDenied && deniedPermissionsList.isNotEmpty()) {
+//                        Log.d(logTag, "Permissions denied on resume, showing prominent dialog if needed")
+//                        locationViewModel.handlePermissionRevokedFromUi()
+//                    }
+//
+//                }
+
+                PermissionViewModel.requiredPermissionsSet.any { permission ->
+                    ContextCompat.checkSelfPermission(
+                        activity,
+                        permission
+                    ) != PackageManager.PERMISSION_GRANTED
+                }.let { anyDenied ->
+                    Log.d(logTag, "Permissions denied on resume $anyDenied, deniedPermissionsList.isNotEmpty() ${deniedPermissionsList.isNotEmpty()}")
+                    if (anyDenied && deniedPermissionsList.isNotEmpty()) {
+                        Log.d(logTag, "Permissions denied on resume, showing prominent dialog if needed")
                         locationViewModel.handlePermissionRevokedFromUi()
                     }
                 }

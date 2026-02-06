@@ -45,14 +45,14 @@
         </provider>
 
         <service
-            android:name=".feature.location.data.LocationService"
+            android:name=".feature.location.data.service.LocationService"
             android:foregroundServiceType="location"
             android:enabled="true"
             android:exported="true"
             tools:ignore="Instantiatable" />
 
         <receiver
-            android:name=".feature.location.data.BootRestartReceiver"
+            android:name=".feature.location.data.receiver.BootRestartReceiver"
             android:enabled="true"
             android:exported="true"
             tools:ignore="ExportedReceiver">
